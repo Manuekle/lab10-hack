@@ -1,0 +1,5 @@
+surface	kind	paths	states	depends_on	status
+shared	shared	src/App.tsx,src/model.ts,src/format.ts,src/main.tsx,src/index.css	login,invalid,pending,session	-	done
+tasks	route	src/screens/TasksScreen.tsx	list,detail,empty,error,capture	shared	done
+knowledge	route	src/screens/KnowledgeScreen.tsx	apps,history,empty,error	shared	done
+incident	route	src/screens/IncidentScreen.tsx	comparison,wipe,adaptation,results	shared	done

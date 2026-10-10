@@ -1,0 +1,7 @@
+../src/server.ts
+../src/ui.ts
+../src/main.ts
+../src/supervisor.ts
+../package.json
+../test/**
+../src/ui/incidente.json
