@@ -384,6 +384,13 @@ export class Supervisor {
   ): Promise<void> {
     const slow = Math.max(slowdownMs, Math.floor((prev?.slowdownMs ?? 0) / 2));
     try {
+      // Si la tarea usó lecciones previas y no terminó por decisión del agente (tiempo, sin progreso, error),
+      // la app pudo cambiar (p. ej. tras un incidente): se olvidan y la siguiente tarea explora desde cero.
+      if (!deliberate && prev?.lessons) {
+        this.opts.store.saveKnowledge(app, { lessons: '', slowdownMs: slow });
+        this.log('knowledge_reset', { task_id: run.id, app, reason: 'la tarea falló usando lecciones previas' }, secrets);
+        return;
+      }
       // Sólo aprender de tareas que terminaron por decisión del agente (no por tiempo o error).
       const lessons =
         deliberate && this.opts.learner && trail.length > 0

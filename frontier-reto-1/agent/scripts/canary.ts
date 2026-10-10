@@ -18,7 +18,8 @@ const verify = arg('verify');
 const base = arg('base') || 'http://localhost:18080';
 const desk = practice.desktopUrl.replace(/^ws/, 'http').replace(/\/websockify\/?$/, '');
 const baselineFile = artifactPath('canary-baseline.png');
-const HEADER_H = 64; // cabecera y menú: nombre, versión y navegación de la app
+// Sólo la barra de título (nombre, versión, fecha). La barra de menús cambia con el uso normal del agente (menús abiertos).
+const HEADER_H = 32;
 
 interface Sample {
   ok: boolean;
@@ -49,16 +50,29 @@ async function sample(): Promise<Sample> {
   }
 }
 
+// Pantalla casi uniforme (navegador reiniciándose tras un reset): no es un cambio de la app.
+function isBlank(f: Frame): boolean {
+  let same = 0;
+  const n = f.width * f.height;
+  for (let i = 0; i < n * 4; i += 4 * 97) if (f.data[i] === f.data[0] && f.data[i + 1] === f.data[1] && f.data[i + 2] === f.data[2]) same++;
+  return same / Math.ceil(n / 97) > 0.98;
+}
+
 const log = (event: string, data: Record<string, unknown>) => console.log(JSON.stringify({ at: new Date().toISOString(), event, ...data }));
 
 let baseline: Frame | undefined = fs.existsSync(baselineFile) ? decodeOwnPng(fs.readFileSync(baselineFile)) : undefined;
 let slowStreak = 0;
+let blankStreak = 0;
 let lastAlert = '';
 while (Date.now() < until) {
   const s = await sample();
   const alerts: string[] = [];
   if (!s.ok) alerts.push(`escritorio caído o inaccesible: ${s.error}`);
-  if (s.frame) {
+  if (s.frame && isBlank(s.frame)) {
+    blankStreak++;
+    if (blankStreak >= 3) alerts.push(`pantalla en blanco durante ${blankStreak} muestras seguidas`);
+  } else if (s.frame) {
+    blankStreak = 0;
     if (!baseline) {
       baseline = s.frame;
       fs.writeFileSync(baselineFile, encodePng(s.frame));
@@ -67,7 +81,7 @@ while (Date.now() < until) {
       alerts.push(`cambió el tamaño del escritorio: ${baseline.width}x${baseline.height} -> ${s.frame.width}x${s.frame.height}`);
     } else {
       const header = diffRatio(baseline, s.frame, { x: 0, y: 0, w: s.frame.width, h: HEADER_H });
-      if (header > 0.02) alerts.push(`cambió la cabecera/menú de la app (${(header * 100).toFixed(1)}% de píxeles)`);
+      if (header > 0.02) alerts.push(`cambió la barra de título de la app (${(header * 100).toFixed(1)}% de píxeles)`);
     }
     slowStreak = s.connectMs + s.frameMs > 8_000 ? slowStreak + 1 : 0;
     if (slowStreak >= 2) alerts.push(`el escritorio está lento: conexión ${s.connectMs} ms, captura ${s.frameMs} ms`);
@@ -89,7 +103,7 @@ while (Date.now() < until) {
         log('canary_verify', { test: verify, result: 'falló', detail: redact(out.trim().split('\n').slice(-3).join(' / '), secrets) });
       }
     }
-    if (s.frame) {
+    if (s.frame && !isBlank(s.frame)) {
       baseline = s.frame; // nueva normalidad: alertar sólo ante el próximo cambio
       fs.writeFileSync(baselineFile, encodePng(s.frame));
     }

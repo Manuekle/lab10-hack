@@ -245,3 +245,14 @@ test('aprendizaje: carga lo aprendido de la app y guarda la experiencia', async 
   await new Promise((r) => setTimeout(r, 50));
   assert.equal(store.getKnowledge('app de prueba')!.tasks, 2);
 });
+
+test('aprendizaje: si una tarea falla usando lecciones previas, se olvidan (la app pudo cambiar)', async () => {
+  const store = TaskStore.open(':memory:');
+  store.saveKnowledge('app de prueba', { lessons: '- Los listados están en el menú Datos', slowdownMs: 400 });
+  const s = setup({ limits: { ...slow, maxProposals: 2 }, store, script: [{ action: { type: 'wait', ms: 100 } }] });
+  await s.run().done;
+  await new Promise((r) => setTimeout(r, 50));
+  const k = store.getKnowledge('app de prueba')!;
+  assert.equal(k.lessons, '');
+  assert.ok(s.logs.some((l) => l.event === 'knowledge_reset'));
+});
