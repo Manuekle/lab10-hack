@@ -3,6 +3,7 @@ import http from 'node:http';
 import { Admission } from './admission.ts';
 import { ConfigError, loadServiceConfig } from './config.ts';
 import { Child, siblingModule, type DriverRequest, type DriverResponse, type WorkerRequest, type WorkerResponse } from './ipc.ts';
+import { makeVerifier } from './agent/verification.ts';
 import { OpenRouterClient } from './model/openrouter.ts';
 import { log } from './redact.ts';
 import { createHandler } from './server.ts';
@@ -31,6 +32,17 @@ const learner = new OpenRouterClient({
   timeoutMs: 20_000,
   attempts: 1,
 });
+// Revisor independiente con el modelo principal (necesita leer la captura con precisión).
+const verifier = makeVerifier(
+  new OpenRouterClient({
+    apiKey: config.openrouterApiKey,
+    model: config.openrouterModel,
+    ...(config.openrouterFallbackModel ? { fallbackModel: config.openrouterFallbackModel } : {}),
+    timeoutMs: 20_000,
+    attempts: 2,
+  }),
+  secrets,
+);
 const supervisor = new Supervisor({
   store,
   config,
@@ -39,6 +51,7 @@ const supervisor = new Supervisor({
   // RFB_ZRLE=false vuelve a Raw sin cambiar código (válvula de seguridad).
   zrle: process.env.RFB_ZRLE !== 'false',
   learner,
+  ...(process.env.FINISH_REVIEW === 'false' ? {} : { verifier }),
   spawnDriver: () => Child.spawn<DriverRequest, DriverResponse>(siblingModule(import.meta.url, 'driver'), { env: childEnv }),
   spawnWorker: () => Child.spawn<WorkerRequest, WorkerResponse>(siblingModule(import.meta.url, 'worker'), { env: childEnv }),
 });

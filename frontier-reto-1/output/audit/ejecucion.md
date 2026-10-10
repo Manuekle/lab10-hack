@@ -43,3 +43,8 @@ La duración baja a medida que el agente acumula lecciones de la app (`app_knowl
 | 2026-10-10T21:00:33 | local | 1 | E3 | pasa | ok | terminada | 60.1 s | 7 ms | ok |
 | 2026-10-10T21:01:46 | local | 1 | E4 | pasa | ok | terminada | 65.1 s | 4 ms | ok |
 | 2026-10-10T21:02:39 | local | 1 | E5 | pasa | ok | fallida | 45.1 s | 4 ms | ok |
+| 2026-10-10T21:38:33 | local | 1 | E1 | pasa | ok | terminada | 100.3 s | 18 ms | ok |
+| 2026-10-10T21:40:16 | local | 1 | E2 | pasa | ok | terminada | 95.2 s | 8 ms | ok |
+| 2026-10-10T21:41:38 | local | 1 | E3 | pasa | ok | terminada | 75.1 s | 4 ms | ok |
+| 2026-10-10T21:42:45 | local | 1 | E4 | pasa | ok | terminada | 60.1 s | 7 ms | ok |
+| 2026-10-10T21:43:38 | local | 1 | E5 | pasa | ok | fallida | 45.1 s | 10 ms | ok |

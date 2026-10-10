@@ -30,7 +30,7 @@ function alive(pid: number | undefined): boolean {
   }
 }
 
-function setup(opts: { script?: unknown[]; worker?: 'fake' | 'hang' | 'blocked'; driver?: 'normal' | 'hang-execute' | 'ignore-close' | 'disconnect-once' | 'blocked'; limits?: Partial<Limits>; tarea?: string; store?: TaskStore }) {
+function setup(opts: { script?: unknown[]; worker?: 'fake' | 'hang' | 'blocked'; driver?: 'normal' | 'hang-execute' | 'ignore-close' | 'disconnect-once' | 'blocked'; limits?: Partial<Limits>; tarea?: string; store?: TaskStore; verifier?: import('../src/agent/verification.ts').FinishVerifier }) {
   const store = opts.store ?? TaskStore.open(':memory:');
   const logFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sup-')), 'driver.log');
   const children: Array<DriverChild | WorkerChild> = [];
@@ -56,6 +56,7 @@ function setup(opts: { script?: unknown[]; worker?: 'fake' | 'hang' | 'blocked';
       return c;
     },
     log: (event, data) => logs.push({ event, data }),
+    ...(opts.verifier ? { verifier: opts.verifier } : {}),
   });
   let released = 0;
   const run = (id = 't1', password = 'clave-escritorio') => {
@@ -255,4 +256,38 @@ test('aprendizaje: si una tarea falla usando lecciones previas, se olvidan (la a
   const k = store.getKnowledge('app de prueba')!;
   assert.equal(k.lessons, '');
   assert.ok(s.logs.some((l) => l.event === 'knowledge_reset'));
+});
+
+test('revisor independiente: objeta una vez, el agente corrige y termina con el estado correcto', async () => {
+  let calls = 0;
+  const s = setup({
+    limits: { revokeMs: 60_000, hardStopMs: 70_000 },
+    verifier: async (input) => {
+      calls++;
+      return input.status === 'terminada'
+        ? { ok: false, correctStatus: 'fallida', problem: 'hay dos registros con ese nombre' }
+        : { ok: true, correctStatus: 'fallida', problem: '' };
+    },
+    script: [
+      { action: { type: 'finish', status: 'terminada', summary: 'Cambié el teléfono', answer: null } },
+      { action: { type: 'finish', status: 'fallida', summary: 'Hay dos: 111 y 222', answer: null } },
+    ],
+  });
+  await s.run().done;
+  assert.equal(calls, 1, 'una sola revisión por tarea');
+  assert.equal(s.store.get('t1')!.estado, 'fallida');
+  assert.deepEqual(s.store.events('t1').map((e) => `${e.stage}:${String(e.data.why ?? '')}`), ['review:', 'rejected:revisión independiente', 'finish:']);
+});
+
+test('revisor independiente: si falla, no bloquea el resultado', async () => {
+  const s = setup({
+    limits: { revokeMs: 60_000, hardStopMs: 70_000 },
+    verifier: async () => {
+      throw new Error('proveedor caído');
+    },
+    script: [{ action: { type: 'finish', status: 'terminada', summary: 'ok', answer: '3' } }],
+  });
+  await s.run().done;
+  assert.equal(s.store.get('t1')!.estado, 'terminada');
+  assert.match(s.store.get('t1')!.resumen, /^respuesta: 3/);
 });

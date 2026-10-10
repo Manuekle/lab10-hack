@@ -4,6 +4,7 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { appKey as toAppKey, extractLessons } from './agent/learning.ts';
 import { describeAction } from './agent/memory.ts';
+import type { FinishVerifier } from './agent/verification.ts';
 import type { Limits, ServiceConfig } from './config.ts';
 import type { Child, DriverRequest, DriverResponse, FramePayload, StepOutcome, WorkerRequest, WorkerResponse } from './ipc.ts';
 import { isAllowedKey, type Action, type ValidProposal } from './model/actions.ts';
@@ -31,6 +32,7 @@ export interface SupervisorOptions {
   allowPrivateDesktops?: boolean;
   zrle?: boolean; // compresión ZRLE en el driver (por defecto sí)
   learner?: OpenRouterClient; // sin learner no se extraen lecciones (pruebas)
+  verifier?: FinishVerifier; // revisión independiente antes de publicar (una por tarea)
   log?: (event: string, data: Record<string, unknown>, secrets: readonly string[]) => void;
 }
 
@@ -171,6 +173,7 @@ export class Supervisor {
       let noProgress = 0;
       let needObserve = false;
       let finishRejections = 0;
+      let reviewed = false;
       let knowledgeToSend = '';
       let pendingWrite: { target: string; uncertain: boolean } | null = null;
       this.log('task_connected', { task_id: run.id, width: frame.width, height: frame.height, ms: Math.round(performance.now() - run.receivedAt) }, secrets);
@@ -281,6 +284,24 @@ export class Supervisor {
             }
             reject('terminada sin evidencia', `antes de terminar, comprueba en pantalla el efecto de "${pendingWrite.target}" y descríbelo en evidence`);
             continue;
+          }
+          // Revisión independiente (una vez por tarea, si queda tiempo). Si objeta, el agente corrige; si falla, no bloquea.
+          if (this.opts.verifier && !reviewed && remaining() > 25_000) {
+            reviewed = true;
+            try {
+              const v = await this.opts.verifier(
+                { task: run.tarea, png: frame.png, status: p.action.status, summary: p.action.summary, answer: p.action.answer, trail },
+                { deadline: performance.now() + Math.min(20_000, remaining() - 15_000), signal },
+              );
+              this.record(run, 'review', { step: steps, ok: v.ok, proposed: p.action.status, correct: v.correctStatus, problem: v.problem }, secrets);
+              if (!v.ok) {
+                reject('revisión independiente', `un revisor independiente objetó el resultado (estado correcto según él: ${v.correctStatus}): ${v.problem}. Si tiene razón, corrige antes de terminar; si no, vuelve a terminar con el estado que corresponda`);
+                continue;
+              }
+            } catch (e) {
+              if (signal.aborted) throw e;
+              this.record(run, 'review', { step: steps, error: e instanceof Error ? e.message : String(e) }, secrets);
+            }
           }
           result = { estado: p.action.status, resumen: buildResumen(p.action, secrets) };
           this.record(run, 'finish', { ...event, status: p.action.status, answer: p.action.answer }, secrets);
