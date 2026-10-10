@@ -8,11 +8,16 @@ export interface FramePayload {
   height: number;
   png: Uint8Array;
   changed: number; // fracción de pixeles distintos respecto a la captura anterior
+  reconnected?: boolean; // el driver recuperó la conexión antes de esta captura
+  skipped?: boolean; // la acción no se ejecutó porque hubo que reconectar
+  slowdownMs: number; // espera extra aprendida: la app repinta más lento de lo previsto
+  learnedSlowdown?: boolean; // esta captura reveló un repintado tardío
 }
 
 export type DriverRequest =
-  | { type: 'connect'; url: string; password: string }
+  | { type: 'connect'; url: string; password: string; allowPrivate: boolean; slowdownMs: number }
   | { type: 'execute'; action: Action }
+  | { type: 'observe' }
   | { type: 'close' };
 
 export type DriverResponse = { type: 'frame'; frame: FramePayload } | { type: 'closed' };
@@ -44,6 +49,7 @@ export type WorkerRequest =
       png: Uint8Array;
       remainingMs: number;
       outcome: StepOutcome | null;
+      knowledge?: string; // lecciones aprendidas de esta app en tareas anteriores
     };
 
 export interface InferenceMetrics {

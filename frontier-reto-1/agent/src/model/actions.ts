@@ -26,7 +26,9 @@ export interface FillField {
 
 export interface Proposal {
   frame_id: number;
+  app: string;
   observation: string;
+  evidence: string;
   notes: string;
   action: RawAction;
   fill: FillField[];
@@ -57,10 +59,15 @@ const nullable = (type: string, extra: Record<string, unknown> = {}) => ({ anyOf
 export const PROPOSAL_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['frame_id', 'observation', 'notes', 'action', 'fill', 'target', 'reason', 'expected'],
+  required: ['frame_id', 'app', 'observation', 'evidence', 'notes', 'action', 'fill', 'target', 'reason', 'expected'],
   properties: {
     frame_id: { type: 'integer', description: 'ID de la captura en la que se basa la propuesta' },
+    app: { type: 'string', description: 'Nombre de la aplicación como aparece en pantalla (título o cabecera), sin versión. Vacío si no se ve' },
     observation: { type: 'string', description: 'Lo relevante que se ve en pantalla, breve' },
+    evidence: {
+      type: 'string',
+      description: 'Si tu acción anterior guardó, creó, exportó, eliminó o confirmó algo: qué se ve AHORA que prueba si tuvo efecto. Vacío si no aplica',
+    },
     notes: { type: 'string', description: 'Memoria de trabajo acumulada: hallazgos, conteos, páginas vistas' },
     action: {
       type: 'object',
@@ -120,6 +127,7 @@ const ALLOWED_KEYS = [
   'shift+End',
   'alt+Down',
   'alt+Up',
+  'F5', // recargar una pantalla en blanco o con error; el supervisor lo bloquea con una escritura pendiente
 ];
 const ALLOWED_KEY_SIGS = new Set(ALLOWED_KEYS.map((k) => parseCombo(k).join(',')));
 
@@ -164,6 +172,9 @@ export function validateProposal(input: unknown, ctx: ValidationContext): Valida
   if (!Number.isInteger(frameId)) errors.push('frame_id debe ser entero');
   else if (frameId !== ctx.frameId) errors.push(`frame_id ${frameId} no es la captura vigente (${ctx.frameId})`);
   const observation = str('observation');
+  const optStr = (k: string, max: number): string => (typeof input[k] === 'string' ? (input[k] as string).slice(0, max) : '');
+  const app = optStr('app', 120);
+  const evidence = optStr('evidence', 1000);
   const notes = str('notes', 4000);
   const target = str('target', 500);
   const reason = str('reason', 1000);
@@ -300,7 +311,7 @@ export function validateProposal(input: unknown, ctx: ValidationContext): Valida
   }
 
   if (errors.length > 0 || !action) return { ok: false, errors: errors.length ? errors : ['Acción inválida'] };
-  return { ok: true, proposal: { frame_id: frameId as number, observation, notes, action, target, reason, expected } };
+  return { ok: true, proposal: { frame_id: frameId as number, app, observation, evidence, notes, action, target, reason, expected } };
 }
 
 // Extrae JSON aunque el modelo lo envuelva en ```json ... ``` o agregue texto alrededor.

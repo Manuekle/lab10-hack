@@ -25,6 +25,7 @@ serveChild<WorkerRequest, WorkerResponse>(
     if (!state) throw Object.assign(new Error('Worker sin inicializar'), { code: 'not_ready' });
     const { init, client, memory } = state;
     memory.recordOutcome(req.outcome);
+    if (req.knowledge) memory.knowledge = req.knowledge;
     const deadline = performance.now() + req.remainingMs;
     const r = await proposeAction(client, {
       system: systemPrompt(init.coords),
@@ -40,6 +41,7 @@ serveChild<WorkerRequest, WorkerResponse>(
         notes: memory.notes,
         history: memory.history,
         warnings: memory.warnings(),
+        knowledge: memory.knowledge,
       }),
       screenshot: { mime: 'image/png', data: Buffer.from(req.png.buffer, req.png.byteOffset, req.png.byteLength) },
       ctx: { frameId: req.frameId, width: req.width, height: req.height, coords: init.coords },

@@ -36,6 +36,7 @@ function similar(a: Action, b: Action | undefined): boolean {
 
 export class TaskMemory {
   readonly task: string;
+  knowledge = '';
   notes = '';
   step = 0;
   readonly history: HistoryEntry[] = [];

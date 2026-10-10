@@ -27,7 +27,7 @@ Acciones (campo action.type); los campos que no apliquen van en null:
 - click / double_click: {{COORDS}}.
 - replace_text: x, y de un campo de texto (misma convención) y text. Hace clic, selecciona todo, borra y escribe text. Úsala para llenar o corregir campos. Para llenar un formulario de una vez, pon en fill los demás campos visibles (x, y, text) en orden; se escriben en el mismo paso. Guardar siempre va en un paso aparte, después de comprobar los valores en la captura.
 - type_text: text, escribe en el foco actual sin borrar.
-- key: key, una de: Return, Tab, Escape, BackSpace, Delete, Home, End, Left, Right, Up, Down, PageUp, PageDown, space, ctrl+a, shift+Tab, ctrl+Home, ctrl+End, shift+Home, shift+End, alt+Down, alt+Up.
+- key: key, una de: Return, Tab, Escape, BackSpace, Delete, Home, End, Left, Right, Up, Down, PageUp, PageDown, space, ctrl+a, shift+Tab, ctrl+Home, ctrl+End, shift+Home, shift+End, alt+Down, alt+Up, F5 (sólo para recargar si la app quedó en blanco, con error o colgada; nunca justo después de guardar sin verificar).
 - scroll: x, y, direction ("up"|"down"), amount (1-20).
 - wait: ms (100-5000) si la pantalla está cargando.
 - finish: status ("terminada"|"fallida"), summary y answer.
@@ -37,9 +37,13 @@ Al terminar:
 - answer: sólo si la tarea es una pregunta y la respuesta quedó verificada. Escribe el valor pedido; si es un número, el número primero. Si pide dos datos, sepáralos con "; " en el orden en que se preguntan. Si no se puede responder, answer null y status "fallida".
 - Usa "terminada" sólo si verificaste en pantalla que la tarea quedó bien.
 
+Después de guardar, crear, exportar, eliminar o confirmar algo, llena evidence con lo que ves que prueba el efecto (mensaje de éxito, el registro en la lista con sus valores, el archivo o aviso de exportación). Sin esa evidencia el supervisor no te deja escribir otra vez ni terminar como "terminada". Si la conexión se cayó o la pantalla cambió de forma inesperada, primero mira y comprueba el estado; nunca repitas una escritura a ciegas.
+
+Si la aplicación muestra un error, una pantalla en blanco, una sesión vencida o un cambio de diseño, adáptate: cierra diálogos (Escape), espera (wait), recarga (F5) o busca el nuevo camino en los menús. Si no puedes completar la tarea con seguridad, termina "fallida" explicando lo que viste.
+
 Si una acción no cambió la pantalla, no la repitas igual: puede que la app aún esté cargando (wait), que las coordenadas no caigan sobre el control o que algo lo tape. Un menú desplegado se cierra con Escape.
 
-Campos del JSON: frame_id (el de la captura actual), observation (lo relevante que ves), notes (tu memoria de trabajo acumulada: ruta descubierta, hallazgos, conteos por página; cópiala y actualízala cada turno), action, fill ([] si no aplica), target (elemento visible sobre el que actúas), reason, expected (qué deberías ver después).`;
+Campos del JSON: frame_id (el de la captura actual), app (nombre visible de la aplicación), observation, evidence (lo relevante que ves), notes (tu memoria de trabajo acumulada: ruta descubierta, hallazgos, conteos por página; cópiala y actualízala cada turno), action, fill ([] si no aplica), target (elemento visible sobre el que actúas), reason, expected (qué deberías ver después).`;
 
 export interface HistoryEntry {
   step: number;
@@ -61,6 +65,7 @@ export function stepPrompt(input: {
   notes: string;
   history: HistoryEntry[];
   warnings?: string[];
+  knowledge?: string;
 }): string {
   const recent = input.history.slice(-8);
   const hist = recent.length
@@ -72,6 +77,13 @@ export function stepPrompt(input: {
     `Captura actual: frame_id=${input.frameId}, ${input.width}x${input.height} px. Coordenadas: ${input.coords === 'norm1000' ? 'normalizadas 0-1000' : 'píxeles'}.`,
     `Paso ${input.step} de máximo ${input.maxSteps}. Tiempo restante: ${Math.max(0, Math.round(input.remainingSec))} s.`,
     ``,
+    ...(input.knowledge
+      ? [
+          `Conocimiento aprendido de esta aplicación en tareas anteriores (son pistas: compruébalas en pantalla; si no coinciden, la app cambió y debes explorar):`,
+          input.knowledge,
+          ``,
+        ]
+      : []),
     `Notas de trabajo previas:`,
     input.notes || '(vacías)',
     ``,

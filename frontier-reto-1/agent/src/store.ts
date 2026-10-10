@@ -49,7 +49,25 @@ const MIGRATIONS: string[] = [
     SELECT RAISE(ABORT, 'tarea terminal inmutable');
   END;
   `,
+  // 2: conocimiento aprendido por aplicación (lecciones de UI y tiempos). Nunca datos de registros.
+  `
+  CREATE TABLE app_knowledge (
+    app TEXT PRIMARY KEY,
+    lessons TEXT NOT NULL DEFAULT '',
+    slowdown_ms INTEGER NOT NULL DEFAULT 0,
+    tasks INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER NOT NULL
+  );
+  `,
 ];
+
+export interface AppKnowledge {
+  app: string;
+  lessons: string;
+  slowdownMs: number;
+  tasks: number;
+  updatedAt: number;
+}
 
 interface DbRow {
   id: string;
@@ -173,6 +191,24 @@ export class TaskStore {
       data: string;
     }>;
     return rows.map((r) => ({ at: r.at, stage: r.stage, data: JSON.parse(r.data) as Record<string, unknown> }));
+  }
+
+  getKnowledge(app: string): AppKnowledge | undefined {
+    const r = this.db.prepare('SELECT app, lessons, slowdown_ms, tasks, updated_at FROM app_knowledge WHERE app = ?').get(app) as
+      | { app: string; lessons: string; slowdown_ms: number; tasks: number; updated_at: number }
+      | undefined;
+    return r ? { app: r.app, lessons: r.lessons, slowdownMs: r.slowdown_ms, tasks: r.tasks, updatedAt: r.updated_at } : undefined;
+  }
+
+  saveKnowledge(app: string, update: { lessons?: string; slowdownMs?: number }): void {
+    const t = this.now();
+    const prev = this.getKnowledge(app);
+    this.db
+      .prepare(
+        `INSERT INTO app_knowledge (app, lessons, slowdown_ms, tasks, updated_at) VALUES (?, ?, ?, 1, ?)
+         ON CONFLICT(app) DO UPDATE SET lessons = excluded.lessons, slowdown_ms = excluded.slowdown_ms, tasks = app_knowledge.tasks + 1, updated_at = excluded.updated_at`,
+      )
+      .run(app, update.lessons ?? prev?.lessons ?? '', update.slowdownMs ?? prev?.slowdownMs ?? 0, t);
   }
 
   ping(): boolean {

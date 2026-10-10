@@ -28,6 +28,14 @@ export interface Transport {
   start(handlers: { onData: (chunk: Uint8Array) => void; onClose: (reason: Error) => void }): void;
 }
 
+// Límites ante un servidor VNC defectuoso u hostil: nada se reserva antes de validar su tamaño.
+export const RFB_LIMITS = {
+  maxDim: 4096, // ancho/alto máximo del framebuffer
+  maxName: 1024,
+  maxCutText: 1024 * 1024,
+  maxBuffered: 64 * 1024 * 1024, // bytes pendientes en la cola
+} as const;
+
 // Cola de bytes: un mensaje RFB puede llegar partido en varios frames WebSocket o juntarse con otros.
 export class ByteQueue {
   private chunks: Buffer[] = [];
@@ -44,6 +52,10 @@ export class ByteQueue {
     const buf = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
     this.chunks.push(buf);
     this.length += buf.length;
+    if (this.length > RFB_LIMITS.maxBuffered) {
+      this.fail(new Error('El servidor VNC envió más datos de los que se pueden procesar'));
+      return;
+    }
     this.pump();
   }
 
@@ -227,6 +239,8 @@ export class RfbClient {
       const height = init.readUInt16BE(2);
       const serverPf = decodePixelFormat(init.subarray(4, 20));
       const nameLen = init.readUInt32BE(20);
+      if (width === 0 || height === 0 || width > RFB_LIMITS.maxDim || height > RFB_LIMITS.maxDim) throw new Error(`Tamaño de escritorio no soportado: ${width}x${height}`);
+      if (nameLen > RFB_LIMITS.maxName) throw new Error('Nombre de escritorio demasiado largo');
       const name = (await queue.read(nameLen)).toString('utf8');
       clearTimeout(timer);
 
@@ -370,7 +384,9 @@ export class RfbClient {
             break;
           case ServerMsg.ServerCutText: {
             const h = await this.queue.read(7);
-            await this.queue.read(h.readUInt32BE(3));
+            const len = h.readUInt32BE(3);
+            if (len > RFB_LIMITS.maxCutText) throw new Error('Portapapeles del servidor demasiado grande');
+            await this.queue.read(len);
             break;
           }
           default:
@@ -380,8 +396,8 @@ export class RfbClient {
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e));
       if (!this.isClosed) {
+        this.markClosed(err); // primero la causa real; cerrar el transporte dispara su propio motivo
         this.transport.close();
-        this.markClosed(err);
       }
     }
   }
@@ -399,6 +415,13 @@ export class RfbClient {
       const hgt = r.readUInt16BE(6);
       const enc = r.readInt32BE(8);
       if (enc === Encoding.LastRect) break;
+      // Validar antes de leer: un rectángulo fuera del framebuffer haría esperar o reservar gigas.
+      if (enc !== Encoding.DesktopSize && (x + w > this.fb.width || y + hgt > this.fb.height)) {
+        throw new Error(`Rectángulo fuera del framebuffer: ${x},${y} ${w}x${hgt}`);
+      }
+      if (enc === Encoding.DesktopSize && (w === 0 || hgt === 0 || w > RFB_LIMITS.maxDim || hgt > RFB_LIMITS.maxDim)) {
+        throw new Error(`Tamaño de escritorio no soportado: ${w}x${hgt}`);
+      }
       if (enc === Encoding.Raw) {
         this.fb.putRaw({ x, y, w, h: hgt }, await this.queue.read(w * hgt * 4));
         area += w * hgt;
