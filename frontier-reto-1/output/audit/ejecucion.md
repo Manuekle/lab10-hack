@@ -22,3 +22,14 @@ Cada fila es una tarea desde `/__reset`, enviada al servicio con sólo `instrucc
 | T4 contar con paginación | pasa | 15,0 s | `respuesta: 3` tras recorrer 3 páginas |
 
 La duración baja a medida que el agente acumula lecciones de la app (`app_knowledge`). Es evidencia de práctica: no garantiza el resultado en el set oculto.
+| 2026-10-10T19:51:48 | agent-production-2577.up.railway.app | 1 | E5 | pasa | ok | fallida | 32.4 s | 331 ms | ok |
+| 2026-10-10T19:53:31 | agent-production-2577.up.railway.app | 1 | E1 | pasa | ok | terminada | 69.9 s | 485 ms | ok |
+| 2026-10-10T19:54:28 | agent-production-2577.up.railway.app | 1 | E2 | pasa | ok | terminada | 48.8 s | 616 ms | ok |
+| 2026-10-10T19:55:24 | agent-production-2577.up.railway.app | 1 | E3 | pasa | ok | terminada | 48.6 s | 345 ms | ok |
+| 2026-10-10T19:56:25 | agent-production-2577.up.railway.app | 1 | E4 | pasa | ok | terminada | 54.4 s | 534 ms | ok |
+| 2026-10-10T19:57:06 | agent-production-2577.up.railway.app | 1 | E5 | pasa | ok | fallida | 32.8 s | 627 ms | ok |
+| 2026-10-10T19:58:13 | agent-production-2577.up.railway.app | 2 | E1 | pasa | ok | terminada | 60.1 s | 762 ms | ok |
+| 2026-10-10T19:59:14 | agent-production-2577.up.railway.app | 2 | E2 | pasa | ok | terminada | 54.2 s | 345 ms | ok |
+| 2026-10-10T20:00:16 | agent-production-2577.up.railway.app | 2 | E3 | pasa | ok | terminada | 54.2 s | 451 ms | ok |
+| 2026-10-10T20:01:18 | agent-production-2577.up.railway.app | 2 | E4 | pasa | ok | terminada | 54.4 s | 534 ms | ok |
+| 2026-10-10T20:02:03 | agent-production-2577.up.railway.app | 2 | E5 | pasa | ok | fallida | 38.0 s | 333 ms | ok |

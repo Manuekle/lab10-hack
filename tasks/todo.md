@@ -114,7 +114,7 @@ En la lista de archivos, `agent/` abrevia `frontier-reto-1/agent/`, desde la ra�
 ## T11 · Harness de práctica (plan B1 y B6)
 
 - [x] T11-A: `scripts/practice.ts` (`npm run practice -- E1|…|all [--base URL] [--rounds N]`): reset, envío de sólo `instruccion`, consulta cada 5 s, `/__check`, evaluación aparte del resumen (`scripts/evaluate-summary.ts` con prueba) y fila en `ejecucion.md`.
-- [ ] T11-B: tres rondas 5/5 contra el servicio desplegado (C3).
+- [x] T11-B: rondas desde reset: local 5/5 (14:37) y Railway 10/10 en dos rondas (14:52–15:02), en `ejecucion.md`.
 - Aceptación: reset sólo del escritorio de desarrollo; agente recibe exclusivamente `instruccion`; comprobar estado de app con `/__check` y estado/resumen por separado, registrando métricas sin secretos.
 - Verificación: prueba del evaluador de resúmenes con casos incorrectos; rondas reales de las cinco pruebas, sin usar resultados como respuestas del agente; guardar fallo/evidencia antes de repetir.
 - Dependencias: T10. Alcance: M.
@@ -153,7 +153,7 @@ En la lista de archivos, `agent/` abrevia `frontier-reto-1/agent/`, desde la ra�
 
 ## T14 · Despliegue público y comprobación (plan B0 y B8)
 
-- [ ] T14-A: despliegue técnico temprano: dominio con puerto 8080, tres rutas desde internet, E3 real y persistencia tras reinicio.
+- [x] T14-A (15:00): `https://agent-production-2577.up.railway.app` en línea, con GitHub conectado; 401/200/404 verificados; E5 y dos rondas completas por internet. Autodeploy no disponible: cada cambio de código requiere redeploy manual en Railway. Antes: dominio con puerto 8080, tres rutas desde internet, E3 real y persistencia tras reinicio.
 - [ ] T14-B: desplegar el commit que pasó C3 y repetir las comprobaciones.
 - Aceptación: dominio público, variables secretas y SQLite en volumen; las tres rutas verificadas desde internet; ningún driver anterior activo después de redeploy.
 - Verificación: health autenticado, tarea de práctica, consulta de estado y reinicio del servicio con estado persistente. No debilitar autenticación para el healthcheck ni iniciar corridas ocultas como prueba de humo.
