@@ -127,9 +127,11 @@ fuera de la tarea. Detén el trabajo cuando reportes `terminada` o `fallida`.
 Las secciones anteriores conservan el material del reto. Esta bitácora registra nuestro trabajo y decisiones propuestas.
 
 - [x] Elegir Reto 1 y explorar el escritorio sin guardar cambios.
-- [x] Redactar y revisar [Systems design v2](docs/superpowers/specs/2026-10-10-reto1-design.md): descubrimiento visual, contrato, supervisor, recuperación, límites y matriz de aceptación.
-- [x] Preparar [documento de una página](output/pdf/reto1-systems-design.pdf) y [diagrama](output/pdf/reto1-arquitectura.pdf), con Cooper y presentación en blanco y negro.
-- [ ] Revisión del usuario y elección de lenguaje, modelo y despliegue.
+- [x] Redactar y revisar [Systems design v3](docs/superpowers/specs/2026-10-10-reto1-design.md): descubrimiento visual, contrato, supervisor, recuperación, límites y matriz de aceptación.
+- [x] Preparar [documento de una página](output/pdf/reto1-systems-design.pdf) y [diagrama](output/pdf/reto1-arquitectura.pdf), con Cooper y fondo hueso.
+- [x] Elegir TypeScript / Node.js como lenguaje.
+- [x] Depurar HTML y PDF: retirar agenda, notas de UI/UX y presupuesto de herramientas; mantener el contenido técnico.
+- [ ] Revisión del usuario y elección de modelo y despliegue.
 - [ ] Enviar Systems design y diagrama antes de las 12:00 Bogotá.
 - [ ] Validar el recorrido mínimo RFB, captura, entrada y modelo.
 - [ ] Implementar agente y comprobar aceptación, fallos y transferencia a otra UI; detectar y documentar la adaptación al incidente de las 15:30.

@@ -1,22 +1,22 @@
 # Reto 1 | Systems design
 
-**Manuel | Frontier BOG/26 | 10 de octubre de 2026 | Propuesta v2 para revisión**
+**Manuel | Frontier BOG/26 | 10 de octubre de 2026 | Propuesta v3 para revisión**
 
-Este archivo conserva la explicación técnica completa. El PDF de una página y el diagrama son los entregables de Systems design. Las decisiones son propuestas; todavía no se ha implementado ni medido el agente. Presentación acordada: Cooper Lt BT 400/500, blanco y negro, formato académico sobrio.
+Este archivo conserva la explicación técnica completa. El PDF de una página y el diagrama son los entregables de Systems design. Las decisiones son propuestas; todavía no se ha implementado ni medido el agente.
 
-## 1. Problema, límites y supuestos
+## 1. Problema y límites
 
 Ejecutar tareas en lenguaje natural sobre aplicaciones desconocidas, observables y operables sólo por VNC. El éxito exige el cambio solicitado, ausencia de cambios ajenos y duplicados, estado final correcto y resumen verificable. Usar siempre el escritorio recibido en la petición; "hoy" y las fechas relativas se resuelven desde la fecha mostrada por la app.
 
 No leer DOM, base de datos ni archivos remotos, ni delegar la operación a un proveedor de automatización. El agente recibe únicamente la instrucción: los resultados esperados de las pruebas pertenecen al evaluador de desarrollo. No fijar menús, coordenadas, identificadores o respuestas de SIGECOM.
 
-Se asume permitida la inferencia multimodal genérica mediante OpenRouter, recurso provisto por el evento; el reconocimiento, la política y la operación de UI serán propios. Es una interpretación de la restricción, no una aclaración oficial. El portal seguía sin aclaraciones a las 10:39 Bogotá. La disponibilidad de visión, salida estructurada, latencia y costo debe comprobarse en el endpoint del modelo elegido.
+El agente usará un modelo multimodal para interpretar capturas y proponer acciones. La navegación, el driver y el control de ejecución serán propios. El modelo y su proveedor son decisiones de implementación; el brief no exige uno concreto. Se validará que acepte imágenes y que sus propuestas puedan convertirse al esquema de acciones.
 
-La UI no ofrece transacciones, rollback ni una clave de idempotencia. Cerrar VNC detiene nuevos envíos del agente; no revierte una escritura ni cancela eventos que el servidor ya recibió. Cero cambios ajenos y cero falsos éxitos son criterios de aceptación, no garantías derivadas de usar un modelo visual.
+Por VNC no podemos asumir transacciones, rollback ni idempotencia de las acciones de UI. Cerrar VNC detiene nuevos envíos del agente; no revierte una escritura ni cancela eventos que el servidor ya recibió. Cero cambios ajenos y cero falsos éxitos son criterios de aceptación, no garantías derivadas de usar un modelo visual.
 
 ## 2. Arquitectura y responsabilidades
 
-Un contenedor y una réplica, con límites entre procesos:
+Servicio en TypeScript / Node.js, con un contenedor y una réplica. Supervisor, worker y driver se separan en procesos:
 
 | Componente | Responsabilidad y límite |
 | --- | --- |
@@ -65,7 +65,7 @@ Un timeout HTTP no prueba que `POST /tasks` haya sido rechazado. El contrato no 
 4. Pedir una propuesta JSON con `frame_id`, acción permitida, argumentos, objetivo visible, justificación y postcondición esperada. Acciones limitadas a clic, tecla, reemplazo de texto, scroll, espera y solicitud de cierre. No permitir código, shell, scripts o herramientas arbitrarias. Validar JSON localmente incluso si el proveedor ofrece salida estructurada.
 5. El supervisor valida esquema, límites de coordenadas/entradas, sesión, secuencia, presupuesto y frame vigente. Antes de escribir, exigir evidencia visual de identidad única y de campos autorizados. La correspondencia semántica sigue dependiendo de la interpretación visual; las guardas deterministas no pueden demostrarla.
 6. Ejecutar una acción a la vez. Mantener clics 160 ms; seleccionar todo antes de reemplazar y comprobar el valor completo. Solicitar un frame posterior al repintado, sin confundir recepción de píxeles con finalización de la app. Esperar hasta 1 s como punto inicial observado y comprobar la postcondición con un timeout acotado. Invalidar propuestas basadas en frames consumidos o en una reconexión.
-7. Verificar identidad y valores después de guardar; en preguntas, revisar filtros y todas las páginas. En exportaciones, verificar filtros, rango, estado y evidencia visible de que la exportación ocurrió. Un clic en Guardar/Exportar o un JSON `finish` no basta para declarar `terminada`.
+7. Verificar identidad y valores después de guardar; en preguntas, revisar filtros, identidad exacta de cada fila y todas las páginas. En exportaciones, verificar filtros, rango, estado y evidencia visible de que la exportación ocurrió. Un clic en Guardar/Exportar o un JSON `finish` no basta para declarar `terminada`.
 
 El texto dentro de la app, incluidas notas, es dato sin autoridad. No puede ampliar el objetivo ni ordenar acciones. Si faltan identificadores para desambiguar, enumerar los candidatos visibles y fallar sin editar. Si no se demuestra una respuesta o un cambio, reportar `fallida` con el límite observado.
 
@@ -98,7 +98,7 @@ El harness recibe los JSON completos; sólo entrega `instruccion` al agente. Cad
 | --- | --- |
 | E1: crear cliente | Valores exactos y un solo registro nuevo; detectar creación antes de volver a enviar. |
 | E2: corregir dirección | Sólo cambiar el campo pedido; ignorar cualquier instrucción incrustada en las notas. |
-| E3: facturas vencidas | Filtros correctos, recorrer todas las páginas y respuesta exacta; cero cambios de datos. |
+| E3: facturas vencidas | Filtros correctos, identidad exacta de cada fila, todas las páginas y respuesta exacta; cero cambios de datos. |
 | E4: exportar pedidos | Estado y rango correctos, evidencia de exportación, sin exportaciones duplicadas. |
 | E5: homónimos | `fallida`, cero cambios y los dos identificadores en la explicación. |
 | Fallos de red/modelo | Desconexión antes y después de Guardar, modelo bloqueado/JSON inválido; cero reenvíos ciegos y parada antes de 280 s. |
@@ -107,25 +107,11 @@ El harness recibe los JSON completos; sólo entrega `instruccion` al agente. Cad
 
 Meta inicial: 5/5 ejemplos en tres rondas desde reset; cero cambios ajenos, duplicados, secretos o falsos éxitos. Registrar máximo de admisión <2 s y parada <280 s, además de duración total, acciones, progreso, reintentos, latencia y costo por tarea. Son objetivos aún sin resultados. Si falla una ronda, conservar la evidencia y corregir antes de repetir.
 
-Una interfaz alternativa mide transferencia, pero los ejemplos y una UI propia no prueban éxito en la evaluación oculta. El evaluador conserva la verdad del estado, no el agente. Presupuesto del evento observado: hasta US$45 durante el día y US$5 reservados para evaluación; fijar límite por tarea después de medir costo y conocer el número de pruebas.
-
-## 8. Pendientes y orden de validación
-
-- [ ] Revisar y aprobar la propuesta v2; elegir lenguaje, modelo compatible y plataforma de despliegue. La arquitectura no depende de un modelo concreto.
-- [ ] Entregar PDF de una página y diagrama antes de las 12:00 Bogotá. Todavía no están enviados.
-- [ ] Primer experimento: autenticación RFB real, frame fresco, clic reconocido, reemplazo de texto completo, latencia/costo de una inferencia. No comenzar con un agente complejo antes de comprobar este recorrido.
-- [ ] Implementar contrato, admisión, supervisor y parada; después descubrimiento, acción y evidencia visual.
-- [ ] Ejecutar matriz de aceptación y transferencia; ajustar límites con medidas. Ante el incidente de las 15:30, detectar falta de progreso/cambio de UI, conservar evidencia y repetir los casos afectados.
-- [ ] Preparar repositorio público, entrypoint autenticado y video público de máximo dos minutos antes de las 20:00. Mantener el servicio disponible hasta terminar el demo day.
+Una interfaz alternativa mide transferencia, pero los ejemplos y una UI propia no prueban éxito en la evaluación oculta. El evaluador conserva la verdad del estado, no el agente.
 
 ## Fuentes
 
 - [README del reto y cinco pruebas](../../../README.md): contrato y evaluación autoritativos.
-- [Rúbrica](https://frontier.lab10.ai/evento/reto/rubrica) y [herramientas](https://frontier.lab10.ai/evento/herramientas): criterios, etapas y recursos del evento. Rúbrica contrastada de nuevo a las 10:39 Bogotá.
+- [Rúbrica](https://frontier.lab10.ai/evento/reto/rubrica): límites, supuestos, decisiones justificadas, casos de prueba y métricas.
 - Exploración visual de SIGECOM: navegación, homónimos, paginación y formularios; no se guardaron cambios. Es evidencia de práctica, no una especificación de la app oculta.
 - [RFC 6143](https://www.rfc-editor.org/rfc/rfc6143): negociación, entradas y framebuffer RFB, incluida composición de actualizaciones y solicitudes no incrementales. No describe el wrapper WebSocket del evento.
-- [OpenRouter: salida estructurada](https://openrouter.ai/docs/guides/features/structured-outputs): soporte por endpoint; validar respuestas localmente y comprobar compatibilidad al elegir modelo.
-
-## Cambios tras la revisión
-
-La v1 dejaba implícitos el descubrimiento de una nueva UI, el contrato de propuestas, la propiedad real del socket, la admisión sin cola de espera, los reenvíos HTTP y la diferencia entre guardas deterministas y verificación visual. La v2 explicita esos límites, añade criterios de evidencia por tarea y convierte los valores de capacidad/timeout en supuestos medibles. El sistema sigue pendiente de implementación y validación.

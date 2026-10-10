@@ -6,7 +6,7 @@ Trabajo de Manuel Erazo para el Reto 1 de Frontier BOG/26 de Lab10: diseño de u
 
 [Ver el Systems design en GitHub Pages](https://manuekle.github.io/lab10-hack/).
 
-La página de entrada abre el [HTML del diseño](frontier-reto-1/output/html/reto1-systems-design.html). Las rutas originales se conservan para que sus enlaces a documentos, PDFs y evidencia funcionen.
+El [HTML del diseño](index.html) se publica directamente en la raíz del sitio. La dirección anterior redirige a esta URL; los enlaces a documentos, PDFs y evidencia se conservan.
 
 ## Contenido
 
