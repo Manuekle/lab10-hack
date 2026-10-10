@@ -1,0 +1,13 @@
+legacy	Lime	parity
+login	Field Input Button	preserve token validation; error and pending feedback
+header tabs	navigation links with buttonVariants	preserve hashes and aria-current
+stat cards	sentence and List	all six figures retained with clearer hierarchy
+task list	List ListItem Status	same 50 recent tasks and selected route
+timeline	List Badge Status	all event stages and evidence retained
+frame	Card and media composition	blob image and click marks retained
+app lessons	List and text	all lessons and app facts retained
+history	List	all recorded learning/resets and migration note
+comparison	Segmented Slider and media composition	side-by-side/wipe, pointer and keyboard
+incident timeline	List	all incident data retained
+adaptation cards	sections List Badge	same four derived counts and task links
+results	Table	same before/after rows and deltas

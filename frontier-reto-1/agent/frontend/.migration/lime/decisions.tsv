@@ -1,0 +1,5 @@
+when	phase	what	because	evidence
+outcome
+2026-10-10	frame	frontend isolated package produces inline HTML	preserve existing CSP and backend files	scripts/export.mjs	frontend-only
+2026-10-10	shared	optional fractionDigits for amount formatter	retain 4-decimal USD cost precision	../src/ui/index.html baseline	default formatter unchanged
+2026-10-10	frame	no migration codemod	one standalone legacy HTML; migrated to typed screen components	parity.tsv	no repeated source transformation
