@@ -2,7 +2,7 @@
 import { serveChild, type WorkerRequest, type WorkerResponse } from '../../src/ipc.ts';
 import type { Action } from '../../src/model/actions.ts';
 
-type Step = { action: Action; target?: string; frame_id?: number };
+type Step = { action: Action; target?: string; frame_id?: number; evidence?: string };
 const script: Step[] = JSON.parse(process.env.FAKE_SCRIPT ?? '[]');
 const hang = process.env.FAKE_WORKER === 'hang';
 let i = 0;
@@ -16,8 +16,10 @@ serveChild<WorkerRequest, WorkerResponse>(
       type: 'proposal',
       proposal: {
         frame_id: s.frame_id ?? req.frameId,
+        app: 'App de prueba v1.2',
         observation: 'obs',
-        notes: `paso ${i}; outcome=${req.outcome?.note ?? ''}`,
+        evidence: s.evidence ?? '',
+        notes: `paso ${i}; knowledge=${req.knowledge ? 'si' : 'no'}; outcome=${req.outcome?.note ?? ''}`,
         action: s.action,
         target: s.target ?? 'objetivo',
         reason: 'r',

@@ -27,6 +27,8 @@ export class DesktopSession {
   readonly client: RfbClient;
   readonly input: InputController;
   private readonly settleOpts: SettleOptions;
+  // Espera extra aprendida en esta sesión cuando la app repinta más tarde de lo previsto.
+  slowdownMs = 0;
 
   private constructor(client: RfbClient, settle: SettleOptions) {
     this.client = client;
@@ -54,7 +56,14 @@ export class DesktopSession {
 
   // Ejecuta una acción y devuelve la captura posterior al repintado. 'finish' no toca la pantalla.
   async execute(action: Action, settle: SettleOptions = {}): Promise<Frame> {
-    const s = { ...SETTLE_BY_ACTION[action.type], ...this.settleOpts, ...settle };
+    const base = SETTLE_BY_ACTION[action.type] ?? {};
+    const slow = action.type === 'click' || action.type === 'double_click' || action.type === 'key' ? this.slowdownMs : 0;
+    const s = {
+      ...base,
+      ...(slow ? { minMs: (base.minMs ?? 0) + slow, changeWithinMs: (base.changeWithinMs ?? 1_500) + slow } : {}),
+      ...this.settleOpts,
+      ...settle,
+    };
     switch (action.type) {
       case 'click':
         await this.input.click(action.x, action.y);

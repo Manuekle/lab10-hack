@@ -195,3 +195,26 @@ test('settle: devuelve tras cambio + silencio, o al vencer el plazo sin cambios'
   assert.equal(f.data[2], 5);
   c.close();
 });
+
+test('servidor hostil: tamaños gigantes se rechazan sin reservar memoria', async () => {
+  // ServerInit de 60000x60000
+  const t1 = new FakeTransport(64);
+  t1.feed(Buffer.from('RFB 003.008\n'), Buffer.from([1, 1]), u32(0), serverInit(60_000, 60_000, 'x'));
+  await assert.rejects(RfbClient.connect({ url: 'wss://x', password: '', transport: t1 }), /no soportado/);
+
+  // Rectángulo Raw fuera del framebuffer
+  const t2 = new FakeTransport(64);
+  handshake38(t2, 4, 3);
+  const c = await RfbClient.connect({ url: 'wss://x', password: 'p', transport: t2 });
+  t2.feed(fbUpdate([rectHeader(0, 0, 50_000, 50_000, Encoding.Raw)]));
+  await c.closed;
+  assert.equal(c.isOpen, false);
+
+  // Portapapeles de 1 GB
+  const t3 = new FakeTransport(64);
+  handshake38(t3, 4, 3);
+  const c3 = await RfbClient.connect({ url: 'wss://x', password: 'p', transport: t3 });
+  t3.feed(Buffer.from([3, 0, 0, 0]), u32(1024 * 1024 * 1024));
+  const reason = await c3.closed;
+  assert.match(reason.message, /Portapapeles/);
+});

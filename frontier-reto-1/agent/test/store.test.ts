@@ -62,3 +62,14 @@ test('reinicio: abiertas pasan a fallida sin replay y terminales se conservan', 
   assert.equal(b.recoverInterrupted(), 0);
   b.close();
 });
+
+test('conocimiento por aplicación: crear, actualizar y conservar lecciones', () => {
+  const s = TaskStore.open(':memory:');
+  assert.equal(s.getKnowledge('sigecom'), undefined);
+  s.saveKnowledge('sigecom', { lessons: '- Facturas está en Cartera', slowdownMs: 400 });
+  s.saveKnowledge('sigecom', { slowdownMs: 800 });
+  const k = s.getKnowledge('sigecom')!;
+  assert.equal(k.lessons, '- Facturas está en Cartera');
+  assert.equal(k.slowdownMs, 800);
+  assert.equal(k.tasks, 2);
+});

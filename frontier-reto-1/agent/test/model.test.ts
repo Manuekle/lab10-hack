@@ -41,7 +41,7 @@ test('validación: rechaza frame vencido, coordenadas, teclas peligrosas y contr
     [proposal({ type: 'click', x: 1.5, y: 1 }), /enteros/],
     [proposal({ type: 'key', key: 'alt+F4' }), /no permitida/],
     [proposal({ type: 'key', key: 'ctrl+w' }), /no permitida/],
-    [proposal({ type: 'key', key: 'F5' }), /no permitida/],
+    [proposal({ type: 'key', key: 'F12' }), /no permitida/],
     [proposal({ type: 'type_text', text: 'a\u0007' }), /control/],
     [proposal({ type: 'type_text', text: '' }), /no vacío/],
     [proposal({ type: 'wait', ms: 60_000 }), /wait.ms/],

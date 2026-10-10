@@ -4,7 +4,7 @@ import { TaskMemory } from '../src/agent/memory.ts';
 import { stepPrompt, systemPrompt } from '../src/agent/prompt.ts';
 import type { ValidProposal } from '../src/model/actions.ts';
 
-const prop = (action: ValidProposal['action'], notes = ''): ValidProposal => ({ frame_id: 1, observation: '', notes, action, target: 'Siguiente', reason: '', expected: 'página 2' });
+const prop = (action: ValidProposal['action'], notes = ''): ValidProposal => ({ frame_id: 1, app: '', observation: '', evidence: '', notes, action, target: 'Siguiente', reason: '', expected: 'página 2' });
 
 test('memoria: historial con resultado observado y notas acumuladas', () => {
   const m = new TaskMemory('¿Cuántas facturas?');

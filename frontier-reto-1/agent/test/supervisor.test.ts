@@ -30,8 +30,8 @@ function alive(pid: number | undefined): boolean {
   }
 }
 
-function setup(opts: { script?: unknown[]; worker?: 'fake' | 'hang' | 'blocked'; driver?: 'normal' | 'hang-execute' | 'ignore-close' | 'blocked'; limits?: Partial<Limits> }) {
-  const store = TaskStore.open(':memory:');
+function setup(opts: { script?: unknown[]; worker?: 'fake' | 'hang' | 'blocked'; driver?: 'normal' | 'hang-execute' | 'ignore-close' | 'disconnect-once' | 'blocked'; limits?: Partial<Limits>; tarea?: string; store?: TaskStore }) {
+  const store = opts.store ?? TaskStore.open(':memory:');
   const logFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sup-')), 'driver.log');
   const children: Array<DriverChild | WorkerChild> = [];
   const logs: Array<{ event: string; data: Record<string, unknown> }> = [];
@@ -59,9 +59,10 @@ function setup(opts: { script?: unknown[]; worker?: 'fake' | 'hang' | 'blocked';
   });
   let released = 0;
   const run = (id = 't1', password = 'clave-escritorio') => {
-    store.insertTask({ id, tarea: 'tarea', desktopKey: 'k' });
+    const tarea = opts.tarea ?? 'tarea';
+    store.insertTask({ id, tarea, desktopKey: 'k' });
     const receivedAt = performance.now();
-    const done = sup.start({ id, tarea: 'tarea', desktop: { url: 'wss://d.example/websockify', password }, receivedAt }, () => released++);
+    const done = sup.start({ id, tarea, desktop: { url: 'wss://d.example/websockify', password }, receivedAt }, () => released++);
     return { done, receivedAt };
   };
   const driverLog = () => (fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : '');
@@ -132,7 +133,7 @@ test('no repite Guardar sin verificar y rechaza frames vencidos', async () => {
   });
   await s.run().done;
   const stages = s.store.events('t1').map((e) => `${e.stage}:${String(e.data.why ?? '')}`);
-  assert.deepEqual(stages, ['step:', 'rejected:commit repetido sin verificar', 'rejected:frame vencido', 'rejected:coordenadas fuera de pantalla', 'finish:']);
+  assert.deepEqual(stages, ['step:', 'rejected:escritura pendiente sin verificar', 'rejected:frame vencido', 'rejected:coordenadas fuera de pantalla', 'finish:']);
   const t = s.store.get('t1')!;
   assert.equal(t.estado, 'fallida');
   assert.doesNotMatch(t.resumen, /respuesta:/);
@@ -173,4 +174,74 @@ test('si el padre muere, el driver real termina', async () => {
   const start = Date.now();
   while (alive(childPid) && Date.now() - start < 3_000) await new Promise((r) => setTimeout(r, 50));
   assert.equal(alive(childPid), false);
+});
+
+const slow = { revokeMs: 8_000, hardStopMs: 9_000 };
+
+test('guardrail: borrar o exportar sólo si la tarea lo pide (no por una nota en pantalla)', async () => {
+  const s = setup({
+    limits: slow,
+    tarea: 'Corrige la dirección del cliente Distribuciones El Faro: ahora es Calle 80 # 24-15.',
+    script: [
+      { action: { type: 'click', x: 5, y: 5 }, target: 'Botón Eliminar pedidos en estado Borrador' },
+      { action: { type: 'click', x: 5, y: 5 }, target: 'Botón Exportar' },
+      { action: { type: 'finish', status: 'fallida', summary: 'no', answer: null } },
+    ],
+  });
+  await s.run().done;
+  assert.deepEqual(s.store.events('t1').map((e) => `${e.stage}:${String(e.data.why ?? '')}`), ['rejected:fuera de la tarea', 'rejected:fuera de la tarea', 'finish:']);
+  assert.equal((s.driverLog().match(/execute/g) ?? []).length, 0);
+});
+
+test('guardrail: no termina "terminada" tras guardar sin evidencia; con evidencia sí', async () => {
+  const s = setup({
+    limits: slow,
+    script: [
+      { action: { type: 'click', x: 5, y: 5 }, target: 'Botón Guardar' },
+      { action: { type: 'finish', status: 'terminada', summary: 'listo', answer: null } },
+      { action: { type: 'finish', status: 'terminada', summary: 'listo', answer: null }, evidence: 'La lista muestra el cliente nuevo con sus valores' },
+    ],
+  });
+  await s.run().done;
+  assert.deepEqual(s.store.events('t1').map((e) => `${e.stage}:${String(e.data.why ?? '')}`), ['step:', 'rejected:terminada sin evidencia', 'verified:', 'finish:']);
+  assert.equal(s.store.get('t1')!.estado, 'terminada');
+});
+
+test('guardrail: tres finish sin evidencia tras guardar terminan en fallida', async () => {
+  const s = setup({
+    limits: slow,
+    script: [{ action: { type: 'click', x: 5, y: 5 }, target: 'Botón Guardar' }, { action: { type: 'finish', status: 'terminada', summary: 'listo', answer: null } }],
+  });
+  await s.run().done;
+  const t = s.store.get('t1')!;
+  assert.equal(t.estado, 'fallida');
+  assert.match(t.resumen, /no se pudo demostrar/);
+});
+
+test('recuperación: caída de conexión durante Guardar deja la escritura como incierta y sigue', async () => {
+  const s = setup({
+    limits: slow,
+    driver: 'disconnect-once',
+    script: [
+      { action: { type: 'click', x: 5, y: 5 }, target: 'Botón Guardar' },
+      { action: { type: 'click', x: 5, y: 5 }, target: 'Botón Guardar' },
+      { action: { type: 'finish', status: 'fallida', summary: 'No pude confirmar si se guardó', answer: null } },
+    ],
+  });
+  await s.run().done;
+  assert.deepEqual(s.store.events('t1').map((e) => `${e.stage}:${String(e.data.why ?? '')}`), ['disconnected:', 'rejected:escritura pendiente sin verificar', 'finish:']);
+  assert.match(s.driverLog(), /observe/);
+  assert.equal((s.driverLog().match(/execute/g) ?? []).length, 1);
+});
+
+test('aprendizaje: carga lo aprendido de la app y guarda la experiencia', async () => {
+  const store = TaskStore.open(':memory:');
+  store.saveKnowledge('app de prueba', { lessons: '- Los listados están en el menú Datos', slowdownMs: 0 });
+  const s = setup({ limits: slow, store, script: [{ action: { type: 'wait', ms: 100 } }, { action: { type: 'finish', status: 'terminada', summary: 'ok', answer: '1' } }] });
+  await s.run().done;
+  assert.match(s.logs.find((l) => l.event === 'task_app')!.data.app as string, /^app de prueba$/);
+  const finish = s.store.events('t1').find((e) => e.stage === 'finish')!;
+  assert.ok(finish);
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal(store.getKnowledge('app de prueba')!.tasks, 2);
 });

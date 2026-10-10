@@ -19,6 +19,28 @@ export interface AppDeps {
 }
 
 const MAX_BODY = 64 * 1024;
+// Freno a la fuerza bruta del token: demasiados fallos desde una IP en un minuto dan 429.
+const AUTH_WINDOW_MS = 60_000;
+const AUTH_MAX_FAILURES = 30;
+const authFailures = new Map<string, { count: number; resetAt: number }>();
+
+function clientIp(req: http.IncomingMessage): string {
+  const fwd = req.headers['x-forwarded-for'];
+  const first = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(',')[0]?.trim();
+  return first || req.socket.remoteAddress || 'desconocida';
+}
+
+function throttled(ip: string, now: number): boolean {
+  const f = authFailures.get(ip);
+  return Boolean(f && f.resetAt > now && f.count >= AUTH_MAX_FAILURES);
+}
+
+function noteFailure(ip: string, now: number): void {
+  if (authFailures.size > 10_000) authFailures.clear();
+  const f = authFailures.get(ip);
+  if (!f || f.resetAt <= now) authFailures.set(ip, { count: 1, resetAt: now + AUTH_WINDOW_MS });
+  else f.count++;
+}
 const TASK_PATH = /^\/tasks\/([A-Za-z0-9_-]{1,64})$/;
 
 function send(res: http.ServerResponse, status: number, body: unknown): void {
@@ -104,7 +126,14 @@ export function createHandler(deps: AppDeps): (req: http.IncomingMessage, res: h
   return (req, res) => {
     const receivedAt = performance.now();
     const path = (req.url ?? '/').split('?')[0]!;
+    const ip = clientIp(req);
+    const now = Date.now();
+    if (throttled(ip, now)) {
+      fail(res, 429, 'demasiados_intentos', 'Demasiados intentos fallidos; espera un minuto');
+      return;
+    }
     if (!tokenMatches(req.headers.authorization, deps.teamToken)) {
+      noteFailure(ip, now);
       fail(res, 401, 'no_autorizado', 'Falta o es inválido Authorization: Bearer <token>');
       return;
     }
