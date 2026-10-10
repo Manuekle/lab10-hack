@@ -33,3 +33,5 @@ La duración baja a medida que el agente acumula lecciones de la app (`app_knowl
 | 2026-10-10T20:00:16 | agent-production-2577.up.railway.app | 2 | E3 | pasa | ok | terminada | 54.2 s | 451 ms | ok |
 | 2026-10-10T20:01:18 | agent-production-2577.up.railway.app | 2 | E4 | pasa | ok | terminada | 54.4 s | 534 ms | ok |
 | 2026-10-10T20:02:03 | agent-production-2577.up.railway.app | 2 | E5 | pasa | ok | fallida | 38.0 s | 333 ms | ok |
+| 2026-10-10T20:05:11 | agent-production-2577.up.railway.app | 1 | E5 | pasa | ok | fallida | 42.6 s | 313 ms | ok |
+| 2026-10-10T20:13:17 | agent-production-2577.up.railway.app | 1 | E2 | pasa | ok | terminada | 54.1 s | 511 ms | ok |
