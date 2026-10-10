@@ -1,6 +1,6 @@
 # Tareas · Fase 2 del Reto 1
 
-Plan y decisiones: [plan.md](plan.md). Estado a las 14:15 del 10/10 (Bogotá): T01–T08 y C1 hechas; C2 técnico hecho; el agente aún no está commiteado ni desplegado. El orden de lo que falta (B0–B9), con horarios y autorizaciones, está en el [plan](plan.md#3-qué-falta-en-orden). Siguiente: B0 (desplegar) y B1 (harness) en paralelo. Los archivos citados son propuestos. La revisión de cada checkpoint evalúa evidencia antes de ampliar el bloque siguiente.
+Plan y decisiones: [plan.md](plan.md). Estado a las 14:35 del 10/10 (Bogotá): T01–T08, C1 y C2 hechas; agente en `main` (commits `56bd694` y `126e858`), con imagen Docker probada; harness y línea base en marcha; despliegue en Railway pendiente de que el usuario conecte GitHub. El orden de lo que falta (B0–B9), con horarios y autorizaciones, está en el [plan](plan.md#3-qué-falta-en-orden). Siguiente: B0 (desplegar) y B1 (harness) en paralelo. Los archivos citados son propuestos. La revisión de cada checkpoint evalúa evidencia antes de ampliar el bloque siguiente.
 
 En la lista de archivos, `agent/` abrevia `frontier-reto-1/agent/`, desde la raíz del repositorio. Las verificaciones con npm se ejecutarán dentro de ese proyecto cuando exista.
 
@@ -89,13 +89,13 @@ En la lista de archivos, `agent/` abrevia `frontier-reto-1/agent/`, desde la ra�
 
 - [x] Tarea de lectura completa por `POST /tasks` y consulta de estado: E3 en práctica `respuesta: 45` dos veces (58,7 s/US$0,085 con filtros desde cero; 22,2 s/US$0,028 desde un estado filtrado). Resumen sin secretos.
 - [x] Admisión 26–29 ms; parada medida en pruebas con reloj abreviado; exclusión por escritorio y redacción cubiertas por pruebas (64 en total).
-- [ ] Revisar la evidencia con el usuario y obtener autorización para `/__reset` y escrituras en el escritorio de práctica ([plan §6](plan.md#6-autorizaciones-que-debe-dar-el-usuario)). La segunda corrida de E3 partió de filtros previos: no cuenta como corrida desde reset.
+- [x] Autorizado por el usuario (14:20): `/__reset` y escrituras en el escritorio de práctica, push a `main` y set oculto sólo con su confirmación. La segunda corrida de E3 partió de filtros previos: no cuenta como corrida desde reset.
 
 ## T09 · Crear y editar con verificación (plan B4)
 
-- [ ] T09-A: escritura pendiente en el supervisor (`pendingWrite`). Rechaza otro commit hasta que una propuesta posterior al commit traiga `evidence` visible. `wait` y clics sueltos no cuentan como verificación. Exportar se ejecuta como máximo una vez por tarea. Si el socket cae con una escritura pendiente, la tarea termina `fallida` sin reenvío.
+- [x] T09-A (126e858): escritura pendiente en el supervisor (`pendingWrite`). Rechaza otro commit hasta que una propuesta posterior al commit traiga `evidence` visible. `wait` y clics sueltos no cuentan como verificación. Exportar se ejecuta como máximo una vez por tarea. Si el socket cae con una escritura pendiente, la tarea termina `fallida` sin reenvío.
 - [ ] T09-B: verificador independiente antes de `finish terminada` (prompt propio, sin historial, modelo de respaldo, ≤1 llamada por tarea). Dos rechazos dan `fallida`.
-- [ ] T09-C: E1 y E2 desde reset con harness y `/__check`; E2 ignora la nota de CL-0007.
+- [ ] T09-C: E1 y E2 desde reset con harness y `/__check`; E2 ignora la nota de CL-0007. E1 pasa (65 s, US$0,10): buscó el NIT antes de crear, `fill` de 3 campos y evidencia «Cliente CL-0141 creado».
 - Aceptación: identidad única y campos autorizados antes de escribir; comprobar efecto posterior; escritura incierta se inspecciona o falla, nunca se reenvía a ciegas.
 - Verificación: E1/E2 desde reset con harness; desconexión antes/después de Guardar y nota maliciosa; comprobar cero cambios ajenos y duplicados.
 - Dependencias: C2. Alcance: M.
@@ -113,7 +113,7 @@ En la lista de archivos, `agent/` abrevia `frontier-reto-1/agent/`, desde la ra�
 
 ## T11 · Harness de práctica (plan B1 y B6)
 
-- [ ] T11-A: `scripts/practice.ts` (`npm run practice -- E1|…|all [--base URL] [--rounds N]`): reset, envío de sólo `instruccion`, consulta cada 5 s, `/__check`, evaluación aparte del resumen (`scripts/evaluate-summary.ts` con prueba) y fila en `ejecucion.md`.
+- [x] T11-A: `scripts/practice.ts` (`npm run practice -- E1|…|all [--base URL] [--rounds N]`): reset, envío de sólo `instruccion`, consulta cada 5 s, `/__check`, evaluación aparte del resumen (`scripts/evaluate-summary.ts` con prueba) y fila en `ejecucion.md`.
 - [ ] T11-B: tres rondas 5/5 contra el servicio desplegado (C3).
 - Aceptación: reset sólo del escritorio de desarrollo; agente recibe exclusivamente `instruccion`; comprobar estado de app con `/__check` y estado/resumen por separado, registrando métricas sin secretos.
 - Verificación: prueba del evaluador de resúmenes con casos incorrectos; rondas reales de las cinco pruebas, sin usar resultados como respuestas del agente; guardar fallo/evidencia antes de repetir.
@@ -121,6 +121,9 @@ En la lista de archivos, `agent/` abrevia `frontier-reto-1/agent/`, desde la ra�
 - Archivos: `agent/scripts/practice.ts`, `agent/scripts/evaluate-summary.ts`, `agent/test/harness.test.ts`, `frontier-reto-1/output/audit/ejecucion.md`.
 
 ## T12 · Fallos, transferencia y registro de incidente (plan B3 y B7)
+
+- [x] Seguridad y guardrails (126e858): límites RFB ante servidor hostil, SSRF por DNS, timeouts HTTP y freno a la fuerza bruta del token, borrar/exportar sólo si la tarea lo pide, reconexión sin replay, espera adaptativa, reintento/relanzamiento del worker, F5 controlado, reinicio ante errores no capturados. Aprendizaje por app en `app_knowledge`. 77 pruebas.
+- [x] Canario de incidentes `npm run canary` y [runbook](../frontier-reto-1/output/audit/incidente-1530.md).
 
 - [ ] T12-A: concurrencia con dos escritorios (práctica y Docker local); reinicio con tarea en curso; corte de WSS a mitad de tarea.
 - [ ] T12-B (opcional si falta tiempo): UI alternativa en el escritorio Docker con navegador kiosko.
@@ -140,7 +143,7 @@ En la lista de archivos, `agent/` abrevia `frontier-reto-1/agent/`, desde la ra�
 
 - [x] Preparación inicial: Dockerfile Node 24, contexto limitado sin credenciales; imagen final construida y SQLite comprobado sin red. Servicio Railway `agent / production`, una réplica, volumen `/data` de 500 MB, nueve variables de ejecución y límites guardados. Evidencia en `frontier-reto-1/output/audit/despliegue.md`.
 - [x] Credenciales autorizadas aplicadas en Railway; modelo copiado del `.env` local. Doce variables productivas completas.
-- [ ] T13-A: el contenedor arranca `dist/main.js`, no `dist/server.js`; corregir Dockerfile, start command de Railway, `RAILWAY.md` y README del agente. Probar la imagen completa (health 401/200, E3, `docker stop` sin hijos).
+- [x] T13-A: Dockerfile arranca `dist/main.js`; imagen Node 24 probada: health 401/200, E3 = 45 en 24 s, SIGTERM ordenado y tarea consultable tras reiniciar con volumen. Start command de Railway: vacío (usa el CMD).
 - [ ] Agregar en Railway `OPENROUTER_FALLBACK_MODEL=anthropic/claude-haiku-5.5` y `OPENROUTER_COORDS=pixel`.
 - [ ] Red saliente: resolver Limited Trial (conectar GitHub en Railway, a cargo del usuario) y comprobar OpenRouter y WSS desde el contenedor.
 - Aceptación: build/arranque desde imagen limpia; `PORT` y ruta SQLite configurables; parada conjunta y una réplica, sin datos de práctica ni secretos en imagen.

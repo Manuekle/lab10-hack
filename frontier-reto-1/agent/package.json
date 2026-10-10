@@ -18,7 +18,9 @@
     "test:local-desktop": "node scripts/local-desktop.ts",
     "start": "node dist/main.js",
     "dev": "node --env-file-if-exists=.env src/main.ts",
-    "task": "node --env-file-if-exists=.env scripts/run-task.ts"
+    "task": "node --env-file-if-exists=.env scripts/run-task.ts",
+    "practice": "node --env-file-if-exists=.env scripts/practice.ts",
+    "canary": "node --env-file-if-exists=.env scripts/canary.ts"
   },
   "devDependencies": {
     "@types/node": "26.6.3",
