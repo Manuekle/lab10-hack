@@ -36,6 +36,8 @@ const supervisor = new Supervisor({
   config,
   secrets,
   allowPrivateDesktops: allowPrivate,
+  // RFB_ZRLE=false vuelve a Raw sin cambiar código (válvula de seguridad).
+  zrle: process.env.RFB_ZRLE !== 'false',
   learner,
   spawnDriver: () => Child.spawn<DriverRequest, DriverResponse>(siblingModule(import.meta.url, 'driver'), { env: childEnv }),
   spawnWorker: () => Child.spawn<WorkerRequest, WorkerResponse>(siblingModule(import.meta.url, 'worker'), { env: childEnv }),
@@ -59,7 +61,7 @@ server.headersTimeout = 10_000;
 server.requestTimeout = 15_000;
 server.listen(config.port, '0.0.0.0', () => {
   ready = true;
-  log('service_ready', { port: config.port, model: config.openrouterModel, fallback: config.openrouterFallbackModel, recovered, allowPrivate });
+  log('service_ready', { port: config.port, model: config.openrouterModel, fallback: config.openrouterFallbackModel, recovered, allowPrivate, zrle: process.env.RFB_ZRLE !== 'false' });
 });
 
 let stopping = false;

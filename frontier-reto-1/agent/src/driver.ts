@@ -12,7 +12,7 @@ const SLOWDOWN_STEP_MS = 400;
 const SLOWDOWN_MAX_MS = 2_500;
 const MAX_RECONNECTS = 3;
 
-let target: { url: string; password: string } | undefined;
+let target: { url: string; password: string; zrle: boolean } | undefined;
 let session: DesktopSession | undefined;
 let last: Frame | undefined;
 let lastAction: Action | undefined;
@@ -42,7 +42,7 @@ async function open(): Promise<DesktopSession> {
   // Conectar aún no actúa sobre la app: reintentar fallos de red es seguro. Una contraseña rechazada no se reintenta.
   for (let attempt = 1; ; attempt++) {
     try {
-      const s = await DesktopSession.open({ url: target.url, password: target.password, timeoutMs: 15_000 });
+      const s = await DesktopSession.open({ url: target.url, password: target.password, timeoutMs: 15_000, zrle: target.zrle });
       s.slowdownMs = slowdownMs;
       return s;
     } catch (e) {
@@ -91,7 +91,7 @@ serveChild<DriverRequest, DriverResponse>(
     switch (req.type) {
       case 'connect': {
         if (target) fail('already_connected', 'Driver ya conectado');
-        target = { url: req.url, password: req.password };
+        target = { url: req.url, password: req.password, zrle: req.zrle };
         slowdownMs = Math.max(0, Math.min(SLOWDOWN_MAX_MS, req.slowdownMs));
         await assertPublic(req.url, req.allowPrivate);
         session = await open();

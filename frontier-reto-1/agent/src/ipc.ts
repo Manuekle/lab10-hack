@@ -15,7 +15,7 @@ export interface FramePayload {
 }
 
 export type DriverRequest =
-  | { type: 'connect'; url: string; password: string; allowPrivate: boolean; slowdownMs: number }
+  | { type: 'connect'; url: string; password: string; allowPrivate: boolean; slowdownMs: number; zrle: boolean }
   | { type: 'execute'; action: Action }
   | { type: 'observe' }
   | { type: 'close' };
