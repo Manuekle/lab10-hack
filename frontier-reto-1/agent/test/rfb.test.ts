@@ -5,6 +5,7 @@ import zlib from 'node:zlib';
 import { ByteQueue, RfbClient } from '../src/rfb/client.ts';
 import { diffRatio, encodePng, Framebuffer } from '../src/rfb/framebuffer.ts';
 import { chooseVersion, Encoding, parseServerVersion, vncAuthResponse } from '../src/rfb/protocol.ts';
+import { DesktopSession } from '../src/rfb/session.ts';
 import { FakeTransport, fbUpdate, rawPixels, rectHeader, serverInit, u32, waitFor } from './helpers/fake-transport.ts';
 
 test('versión: elige la mayor soportada', () => {
@@ -217,4 +218,19 @@ test('servidor hostil: tamaños gigantes se rechazan sin reservar memoria', asyn
   t3.feed(Buffer.from([3, 0, 0, 0]), u32(1024 * 1024 * 1024));
   const reason = await c3.closed;
   assert.match(reason.message, /Portapapeles/);
+});
+
+test('escritorio lento: sin captura completa a tiempo pero con actualizaciones parciales, la sesión sigue', async () => {
+  const t = new FakeTransport(64);
+  handshake38(t, 4, 3);
+  t.feed(fbUpdate([rectHeader(0, 0, 2, 1, Encoding.Raw), rawPixels(0, 0, 2, 1)]));
+  const s = await DesktopSession.open({ url: 'wss://x', password: 'p', timeoutMs: 300, transport: t });
+  assert.equal(s.client.isOpen, true);
+  assert.ok(s.client.frameSeq >= 1);
+  s.close();
+
+  const t2 = new FakeTransport(64);
+  handshake38(t2, 4, 3);
+  await assert.rejects(DesktopSession.open({ url: 'wss://x', password: 'p', timeoutMs: 300, transport: t2 }), /Timeout/);
+  assert.ok(t2.closed);
 });

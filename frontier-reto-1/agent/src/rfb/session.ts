@@ -1,6 +1,6 @@
 // Sesión de escritorio: conexión RFB + entradas. Ejecuta sólo acciones ya validadas.
 import type { Action } from '../model/actions.ts';
-import { RfbClient, type SettleOptions } from './client.ts';
+import { RfbClient, type SettleOptions, type Transport } from './client.ts';
 import type { Frame } from './framebuffer.ts';
 import { InputController, keyNameToKeysym, parseCombo } from './input.ts';
 
@@ -9,6 +9,7 @@ export interface SessionOptions {
   password: string;
   timeoutMs?: number;
   settle?: SettleOptions;
+  transport?: Transport; // pruebas
 }
 
 // Espera por tipo de acción. La app repinta hasta 1 s después de un clic (README); capturar antes trae la pantalla vieja
@@ -37,9 +38,23 @@ export class DesktopSession {
   }
 
   static async open(opts: SessionOptions): Promise<DesktopSession> {
-    const client = await RfbClient.connect({ url: opts.url, password: opts.password, timeoutMs: opts.timeoutMs ?? 15_000 });
+    const client = await RfbClient.connect({
+      url: opts.url,
+      password: opts.password,
+      timeoutMs: opts.timeoutMs ?? 15_000,
+      ...(opts.transport ? { transport: opts.transport } : {}),
+    });
     const session = new DesktopSession(client, opts.settle ?? {});
-    await client.refresh(opts.timeoutMs ?? 15_000);
+    try {
+      await client.refresh(opts.timeoutMs ?? 15_000);
+    } catch (e) {
+      // Escritorio lento: si ya llegaron actualizaciones, seguir con el framebuffer compuesto
+      // (las siguientes capturas lo completan) en vez de perder la tarea.
+      if (!client.isOpen || client.frameSeq === 0) {
+        client.close();
+        throw e;
+      }
+    }
     return session;
   }
 
