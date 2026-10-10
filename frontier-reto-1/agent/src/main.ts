@@ -4,6 +4,7 @@ import { Admission } from './admission.ts';
 import { ConfigError, loadServiceConfig } from './config.ts';
 import { Child, siblingModule, type DriverRequest, type DriverResponse, type WorkerRequest, type WorkerResponse } from './ipc.ts';
 import { OpenRouterClient } from './model/openrouter.ts';
+import { Observatory } from './observatory.ts';
 import { log } from './redact.ts';
 import { createHandler } from './server.ts';
 import { TaskStore } from './store.ts';
@@ -22,6 +23,8 @@ const allowPrivate = process.env.ALLOW_PRIVATE_DESKTOPS === 'true';
 const store = TaskStore.open(config.databasePath);
 const recovered = store.recoverInterrupted();
 const admission = new Admission(config.limits.maxActiveTasks);
+// UI de observación (/ui): última captura por tarea y lecciones aprendidas u olvidadas, enganchado sin tocar el supervisor.
+const observatory = new Observatory(store);
 // Los hijos no heredan secretos del servicio por entorno: el worker recibe sólo la clave de OpenRouter por IPC.
 const childEnv = { PATH: process.env.PATH ?? '', NODE_ENV: process.env.NODE_ENV ?? 'production' };
 // Aprendizaje: extracción de lecciones de UI con el modelo barato, fuera de la ruta crítica de cada tarea.
@@ -39,7 +42,11 @@ const supervisor = new Supervisor({
   // RFB_ZRLE=false vuelve a Raw sin cambiar código (válvula de seguridad).
   zrle: process.env.RFB_ZRLE !== 'false',
   learner,
-  spawnDriver: () => Child.spawn<DriverRequest, DriverResponse>(siblingModule(import.meta.url, 'driver'), { env: childEnv }),
+  log: (event, data, logSecrets) => {
+    log(event, data, logSecrets);
+    observatory.onLog(event, data, logSecrets);
+  },
+  spawnDriver: () => observatory.watchDriver(Child.spawn<DriverRequest, DriverResponse>(siblingModule(import.meta.url, 'driver'), { env: childEnv })),
   spawnWorker: () => Child.spawn<WorkerRequest, WorkerResponse>(siblingModule(import.meta.url, 'worker'), { env: childEnv }),
 });
 
@@ -49,10 +56,12 @@ const server = http.createServer(
     teamToken: config.teamToken,
     store,
     admission,
-    supervisor,
+    supervisor: { start: (run, release) => observatory.track(run.id, () => supervisor.start(run, release)) },
     isReady: () => ready,
     allowPrivateDesktops: allowPrivate,
     log: (event, data) => log(event, data, secrets),
+    frames: observatory,
+    secrets,
   }),
 );
 server.keepAliveTimeout = 65_000;
