@@ -13,6 +13,7 @@ El [HTML del diseño](index.html) se publica directamente en la raíz del sitio.
 - [`frontier-reto-1/`](frontier-reto-1/README.md): instrucciones del reto, pruebas de práctica, diseño técnico y entregables.
 - [`frontier-reto-1/pruebas/`](frontier-reto-1/pruebas/): cinco tareas de práctica en JSON.
 - [Diseño técnico](frontier-reto-1/docs/superpowers/specs/2026-10-10-reto1-design.md).
+- [Plan de ejecución de fase 2](tasks/plan.md) y [tareas con criterios de aceptación](tasks/todo.md).
 - [Auditoría visual de SIGECOM](frontier-reto-1/output/audit/auditoria-sigecom.md).
 - [Systems design en PDF](frontier-reto-1/output/pdf/reto1-systems-design.pdf) y [diagrama en PDF](frontier-reto-1/output/pdf/reto1-arquitectura.pdf).
 - [`cooper/`](cooper/README.md): recursos tipográficos y notas de uso.

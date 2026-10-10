@@ -131,10 +131,11 @@ Las secciones anteriores conservan el material del reto. Esta bitácora registra
 - [x] Preparar [documento de una página](output/pdf/reto1-systems-design.pdf) y [diagrama](output/pdf/reto1-arquitectura.pdf), con Cooper y fondo hueso.
 - [x] Elegir TypeScript / Node.js como lenguaje.
 - [x] Depurar HTML y PDF: retirar agenda, notas de UI/UX y presupuesto de herramientas; mantener el contenido técnico.
-- [ ] Revisión del usuario y elección de modelo y despliegue.
-- [ ] Enviar Systems design y diagrama antes de las 12:00 Bogotá.
+- [x] Cerrar Systems design con el usuario y entregar documento y diagrama: el portal registra ambos a las 11:41 Bogotá.
+- [x] Elegir OpenRouter como proveedor y Railway para el despliegue de ejecución.
+- [ ] Seleccionar el modelo multimodal mediante la primera medición de lectura, latencia y costo.
 - [ ] Validar el recorrido mínimo RFB, captura, entrada y modelo.
 - [ ] Implementar agente y comprobar aceptación, fallos y transferencia a otra UI; detectar y documentar la adaptación al incidente de las 15:30.
 - [ ] Publicar repositorio, entrypoint y video de máximo dos minutos antes de las 20:00; mantener servicio durante el demo day.
 
-Trabajaremos por etapas: revisar la propuesta concreta con el usuario antes de pasar a la siguiente. Las métricas del diseño son objetivos; aún no son resultados del agente.
+El [plan de fase 2](../tasks/plan.md) y su [lista de tareas](../tasks/todo.md) parten del diseño cerrado. El primer bloque valida captura RFB, entrada y modelo; después conecta el contrato HTTP y la parada del supervisor. Trabajaremos por etapas: revisar la propuesta concreta con el usuario antes de pasar a la siguiente. Las métricas del diseño son objetivos; aún no son resultados del agente.

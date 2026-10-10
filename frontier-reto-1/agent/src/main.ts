@@ -1,0 +1,64 @@
+// Punto de entrada del servicio: configuración, recuperación, HTTP y parada ordenada.
+import http from 'node:http';
+import { Admission } from './admission.ts';
+import { ConfigError, loadServiceConfig } from './config.ts';
+import { Child, siblingModule, type DriverRequest, type DriverResponse, type WorkerRequest, type WorkerResponse } from './ipc.ts';
+import { log } from './redact.ts';
+import { createHandler } from './server.ts';
+import { TaskStore } from './store.ts';
+import { Supervisor } from './supervisor.ts';
+
+let config;
+try {
+  config = loadServiceConfig();
+} catch (e) {
+  console.error(e instanceof ConfigError ? e.message : 'No se pudo cargar la configuración');
+  process.exit(1);
+}
+const secrets = [config.teamToken, config.openrouterApiKey];
+const allowPrivate = process.env.ALLOW_PRIVATE_DESKTOPS === 'true';
+
+const store = TaskStore.open(config.databasePath);
+const recovered = store.recoverInterrupted();
+const admission = new Admission(config.limits.maxActiveTasks);
+// Los hijos no heredan secretos del servicio por entorno: el worker recibe sólo la clave de OpenRouter por IPC.
+const childEnv = { PATH: process.env.PATH ?? '', NODE_ENV: process.env.NODE_ENV ?? 'production' };
+const supervisor = new Supervisor({
+  store,
+  config,
+  secrets,
+  spawnDriver: () => Child.spawn<DriverRequest, DriverResponse>(siblingModule(import.meta.url, 'driver'), { env: childEnv }),
+  spawnWorker: () => Child.spawn<WorkerRequest, WorkerResponse>(siblingModule(import.meta.url, 'worker'), { env: childEnv }),
+});
+
+let ready = false;
+const server = http.createServer(
+  createHandler({
+    teamToken: config.teamToken,
+    store,
+    admission,
+    supervisor,
+    isReady: () => ready,
+    allowPrivateDesktops: allowPrivate,
+    log: (event, data) => log(event, data, secrets),
+  }),
+);
+server.keepAliveTimeout = 65_000;
+server.listen(config.port, '0.0.0.0', () => {
+  ready = true;
+  log('service_ready', { port: config.port, model: config.openrouterModel, fallback: config.openrouterFallbackModel, recovered, allowPrivate });
+});
+
+let stopping = false;
+async function shutdown(signal: string): Promise<void> {
+  if (stopping) return;
+  stopping = true;
+  ready = false;
+  log('service_stopping', { signal, active: supervisor.active });
+  server.close();
+  await supervisor.stopAll('el servicio se detuvo antes de terminar');
+  store.close();
+  process.exit(0);
+}
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));

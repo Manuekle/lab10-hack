@@ -1,0 +1,8 @@
+# Sólo enviar archivos de build; excluye credenciales y evidencia local.
+*
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.build.json
+!src/
+!src/**

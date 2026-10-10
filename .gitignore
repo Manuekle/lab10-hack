@@ -13,6 +13,9 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+# Este ejemplo local contiene las credenciales del entorno de Frontier.
+frontier-reto-1/agent/.env.example
+!frontier-reto-1/agent/.env.template
 *.pem
 *.key
 *.log
@@ -32,3 +35,10 @@ _site/
 !**/output/audit/*.md
 !**/output/audit/*.jpg
 **/output/audit/systems-design-*
+
+# Agente: evidencia local de scripts y base SQLite de desarrollo
+frontier-reto-1/agent/.artifacts/
+frontier-reto-1/agent/.data/
+*.db
+*.db-wal
+*.db-shm
