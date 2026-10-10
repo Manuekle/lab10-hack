@@ -6,6 +6,7 @@ export const SecurityType = { None: 1, VncAuth: 2 } as const;
 export const Encoding = {
   Raw: 0,
   CopyRect: 1,
+  ZRLE: 16,
   LastRect: -224,
   DesktopSize: -223,
 } as const;

@@ -10,6 +10,7 @@ export interface SessionOptions {
   timeoutMs?: number;
   settle?: SettleOptions;
   transport?: Transport; // pruebas
+  zrle?: boolean;
 }
 
 // Espera por tipo de acción. La app repinta hasta 1 s después de un clic (README); capturar antes trae la pantalla vieja
@@ -42,6 +43,7 @@ export class DesktopSession {
       url: opts.url,
       password: opts.password,
       timeoutMs: opts.timeoutMs ?? 15_000,
+      zrle: opts.zrle ?? true,
       ...(opts.transport ? { transport: opts.transport } : {}),
     });
     const session = new DesktopSession(client, opts.settle ?? {});

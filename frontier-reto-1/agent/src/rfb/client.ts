@@ -1,6 +1,7 @@
 // Cliente RFB sobre WebSocket. Posee el socket; sólo expone capturas y envío de entradas.
 import { setTimeout as sleep } from 'node:timers/promises';
 import { Framebuffer, type Frame } from './framebuffer.ts';
+import { decodeZrle, ZrleInflater } from './zrle.ts';
 import {
   AGENT_PIXEL_FORMAT,
   Encoding,
@@ -163,6 +164,7 @@ export interface ConnectOptions {
   transport?: Transport; // pruebas
   shared?: boolean;
   activityThresholdPx?: number;
+  zrle?: boolean; // pedir compresión ZRLE (por defecto sí); si el servidor no la soporta, usa Raw
 }
 
 export interface SettleOptions {
@@ -178,6 +180,7 @@ export interface RfbMetrics {
   handshakeMs: number;
   bytesIn: number;
   updates: number;
+  rects: Record<string, number>; // rectángulos recibidos por encoding
 }
 
 export class RfbClient {
@@ -194,6 +197,8 @@ export class RfbClient {
   private resolveClosed!: (e: Error) => void;
   private updateWaiters: Array<{ pred: (area: number) => boolean; resolve: () => void; reject: (e: Error) => void }> = [];
   private readonly activityThresholdPx: number;
+  private receiving = false; // hay una actualización de pantalla llegando
+  private zrle: ZrleInflater | undefined;
   private readonly transport: Transport;
   private readonly queue: ByteQueue;
 
@@ -247,7 +252,7 @@ export class RfbClient {
       client = new RfbClient(
         transport,
         queue,
-        { version, securityType, handshakeMs: performance.now() - started, bytesIn, updates: 0 },
+        { version, securityType, handshakeMs: performance.now() - started, bytesIn, updates: 0, rects: {} },
         width,
         height,
         opts.activityThresholdPx ?? 400,
@@ -255,7 +260,8 @@ export class RfbClient {
       client.name = name;
       client.serverPixelFormat = serverPf;
       transport.send(setPixelFormat(AGENT_PIXEL_FORMAT));
-      transport.send(setEncodings([Encoding.CopyRect, Encoding.Raw, Encoding.DesktopSize, Encoding.LastRect]));
+      const encodings = [Encoding.CopyRect, Encoding.Raw, Encoding.DesktopSize, Encoding.LastRect];
+      transport.send(setEncodings(opts.zrle === false ? encodings : [Encoding.ZRLE, ...encodings]));
       transport.send(framebufferUpdateRequest(false, 0, 0, width, height));
       void client.readLoop();
       return client;
@@ -305,6 +311,11 @@ export class RfbClient {
     while (performance.now() - start < maxMs) {
       const now = performance.now();
       const changed = this.lastActivityAt > start;
+      // Con el escritorio lento, una actualización grande tarda en llegar: no capturar a medias.
+      if (this.receiving) {
+        await this.sleepOpen(40);
+        continue;
+      }
       if (changed && now - this.lastActivityAt >= quietMs) break;
       if (!changed && now - start >= changeWithinMs) break;
       await this.sleepOpen(40);
@@ -342,6 +353,7 @@ export class RfbClient {
     this.isClosed = true;
     this.closeReason = reason;
     this.queue.fail(reason);
+    this.zrle?.close();
     for (const w of this.updateWaiters.splice(0)) w.reject(reason);
     this.resolveClosed(reason);
   }
@@ -407,6 +419,7 @@ export class RfbClient {
     const count = h.readUInt16BE(1);
     let area = 0;
     let resized = false;
+    this.receiving = count > 0;
     for (let i = 0; i < count; i++) {
       const r = await this.queue.read(12);
       const x = r.readUInt16BE(0);
@@ -414,6 +427,7 @@ export class RfbClient {
       const w = r.readUInt16BE(4);
       const hgt = r.readUInt16BE(6);
       const enc = r.readInt32BE(8);
+      this.metrics.rects[enc] = (this.metrics.rects[enc] ?? 0) + 1;
       if (enc === Encoding.LastRect) break;
       // Validar antes de leer: un rectángulo fuera del framebuffer haría esperar o reservar gigas.
       if (enc !== Encoding.DesktopSize && (x + w > this.fb.width || y + hgt > this.fb.height)) {
@@ -429,6 +443,13 @@ export class RfbClient {
         const src = await this.queue.read(4);
         this.fb.copyRect({ x, y, w, h: hgt }, src.readUInt16BE(0), src.readUInt16BE(2));
         area += w * hgt;
+      } else if (enc === Encoding.ZRLE) {
+        const len = (await this.queue.read(4)).readUInt32BE(0);
+        if (len > RFB_LIMITS.maxBuffered) throw new Error('Rectángulo ZRLE demasiado grande');
+        this.zrle ??= new ZrleInflater();
+        const raw = await this.zrle.inflate(await this.queue.read(len), w * hgt * 4 + Math.ceil((w * hgt) / 4096) * 64 + 1024);
+        this.fb.putRaw({ x, y, w, h: hgt }, decodeZrle(raw, w, hgt));
+        area += w * hgt;
       } else if (enc === Encoding.DesktopSize) {
         this.fb.resize(w, hgt);
         resized = true;
@@ -436,6 +457,7 @@ export class RfbClient {
         throw new Error(`Encoding RFB no soportado: ${enc}`);
       }
     }
+    this.receiving = false;
     this.seq++;
     this.metrics.updates++;
     if (area >= this.activityThresholdPx || resized) this.lastActivityAt = performance.now();

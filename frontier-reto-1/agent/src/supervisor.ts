@@ -29,6 +29,7 @@ export interface SupervisorOptions {
   spawnDriver: () => DriverChild;
   spawnWorker: () => WorkerChild;
   allowPrivateDesktops?: boolean;
+  zrle?: boolean; // compresión ZRLE en el driver (por defecto sí)
   learner?: OpenRouterClient; // sin learner no se extraen lecciones (pruebas)
   log?: (event: string, data: Record<string, unknown>, secrets: readonly string[]) => void;
 }
@@ -159,7 +160,7 @@ export class Supervisor {
       driver = this.opts.spawnDriver();
       let worker = await spawnWorker();
       const connected = await driver.request(
-        { type: 'connect', url: run.desktop.url, password: run.desktop.password, allowPrivate: this.opts.allowPrivateDesktops ?? false, slowdownMs: 0 },
+        { type: 'connect', url: run.desktop.url, password: run.desktop.password, allowPrivate: this.opts.allowPrivateDesktops ?? false, slowdownMs: 0, zrle: this.opts.zrle ?? true },
         { timeoutMs: Math.min(30_000, remaining()), signal },
       );
       if (connected.type !== 'frame') throw new Error('El driver no devolvió captura');

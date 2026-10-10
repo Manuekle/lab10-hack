@@ -5,20 +5,20 @@ import { loadPracticeConfig, secretValues } from '../src/config.ts';
 import { redact } from '../src/redact.ts';
 import { RfbClient } from '../src/rfb/client.ts';
 import { encodePng } from '../src/rfb/framebuffer.ts';
-import { arg, artifactPath, stamp } from './lib.ts';
+import { arg, artifactPath, flag, stamp } from './lib.ts';
 
 const practice = loadPracticeConfig();
 const secrets = secretValues(practice);
 const t0 = performance.now();
 let client: RfbClient | undefined;
 try {
-  client = await RfbClient.connect({ url: practice.desktopUrl, password: practice.desktopPassword, timeoutMs: 20_000 });
+  client = await RfbClient.connect({ url: arg('url') || practice.desktopUrl, password: arg('url') ? (arg('password') ?? '') : practice.desktopPassword, timeoutMs: 30_000, zrle: !flag('raw') });
   const tHandshake = performance.now();
-  const frame = await client.refresh(20_000);
+  const frame = await client.refresh(30_000);
   const tFrame = performance.now();
   const png = encodePng(frame);
   const tPng = performance.now();
-  const file = artifactPath(`capture-${stamp()}.png`);
+  const file = artifactPath(arg('out') || `capture-${stamp()}.png`);
   fs.writeFileSync(file, png);
 
   const observeSec = Number(arg('observe') ?? 0);
@@ -43,6 +43,7 @@ try {
         handshakeMs: Math.round(tHandshake - t0),
         fullFrameMs: Math.round(tFrame - tHandshake),
         bytesIn: client.metrics.bytesIn,
+        rects: client.metrics.rects,
         pngBytes: png.length,
         pngEncodeMs: Math.round(tPng - tFrame),
         observed,
