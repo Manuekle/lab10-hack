@@ -1,11 +1,14 @@
-// Contrato HTTP del evaluador. Todas las rutas exigen Authorization: Bearer <token del equipo>.
+// Contrato HTTP del evaluador. Todas las rutas exigen Authorization: Bearer <token del equipo>,
+// salvo la página vacía de /ui, que pide el token y lo usa en cada llamada.
 import crypto from 'node:crypto';
 import type http from 'node:http';
 import type { Admission } from './admission.ts';
 import { parseDesktopUrl } from './desktop-url.ts';
-import { redact } from './redact.ts';
-import type { TaskStore } from './store.ts';
+import type { FrameSnapshot } from './observatory.ts';
+import { redact, redactValue } from './redact.ts';
+import type { TaskOverview, TaskStore } from './store.ts';
 import type { TaskRun } from './supervisor.ts';
+import { incidentData, uiAsset, uiPage } from './ui.ts';
 
 export interface AppDeps {
   teamToken: string;
@@ -16,6 +19,9 @@ export interface AppDeps {
   allowPrivateDesktops: boolean;
   log: (event: string, data: Record<string, unknown>) => void;
   newId?: () => string;
+  // Observatorio de sólo lectura (opcional): última captura por tarea y secretos a redactar en sus respuestas.
+  frames?: { frame(taskId: string): FrameSnapshot | undefined };
+  secrets?: readonly string[];
 }
 
 const MAX_BODY = 64 * 1024;
@@ -42,6 +48,12 @@ function noteFailure(ip: string, now: number): void {
   else f.count++;
 }
 const TASK_PATH = /^\/tasks\/([A-Za-z0-9_-]{1,64})$/;
+const TASK_VIEW_PATH = /^\/tasks\/([A-Za-z0-9_-]{1,64})\/(events|frame\.png)$/;
+const UI_ASSET_PATH = /^\/ui\/assets\/([^/]+)$/;
+const RECENT_TASKS = 50;
+const KNOWLEDGE_STAGES = ['knowledge_updated', 'knowledge_reset', 'knowledge_error'];
+// Cabeceras de las rutas del observatorio: sin caché, sin sniffing y sin incrustarse en otros sitios.
+const VIEW_HEADERS = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer' };
 
 function send(res: http.ServerResponse, status: number, body: unknown): void {
   const data = JSON.stringify(body);
@@ -51,6 +63,25 @@ function send(res: http.ServerResponse, status: number, body: unknown): void {
 
 function fail(res: http.ServerResponse, status: number, code: string, message: string): void {
   send(res, status, { error: { code, message } });
+}
+
+function sendView(res: http.ServerResponse, contentType: string, body: string | Uint8Array, extra: Record<string, string> = {}): void {
+  res.writeHead(200, { 'Content-Type': contentType, 'Content-Length': Buffer.byteLength(body), ...VIEW_HEADERS, ...extra });
+  res.end(body);
+}
+
+function overviewJson(t: TaskOverview, secrets: readonly string[]): Record<string, unknown> {
+  return {
+    id: t.id,
+    estado: t.estado,
+    fase: t.fase,
+    tarea: redact(t.tarea, secrets),
+    resumen: redact(t.resumen, secrets),
+    created_at: t.createdAt,
+    finished_at: t.finishedAt,
+    cost: Number(t.cost.toFixed(5)),
+    steps: t.steps,
+  };
 }
 
 function tokenMatches(header: string | undefined, expected: string): boolean {
@@ -123,9 +154,19 @@ export function parseTaskBody(raw: string, allowPrivate: boolean): Parsed {
 
 export function createHandler(deps: AppDeps): (req: http.IncomingMessage, res: http.ServerResponse) => void {
   const newId = deps.newId ?? (() => crypto.randomUUID());
+  const secrets = [deps.teamToken, ...(deps.secrets ?? [])];
   return (req, res) => {
     const receivedAt = performance.now();
     const path = (req.url ?? '/').split('?')[0]!;
+    // La página de /ui no contiene datos: es pública y no cuenta como intento de autenticación.
+    if (path === '/ui' || path === '/ui/') {
+      if (req.method !== 'GET') return fail(res, 405, 'metodo', 'Usa GET');
+      uiPage().then(
+        (p) => sendView(res, 'text/html; charset=utf-8', p.html, { 'Content-Security-Policy': p.csp }),
+        () => fail(res, 404, 'no_existe', 'La UI no está disponible en este despliegue'),
+      );
+      return;
+    }
     const ip = clientIp(req);
     const now = Date.now();
     if (throttled(ip, now)) {
@@ -149,8 +190,12 @@ export function createHandler(deps: AppDeps): (req: http.IncomingMessage, res: h
       return ok ? send(res, 200, { ok: true }) : fail(res, 503, 'no_listo', 'El agente no está listo');
     }
 
+    if (path === '/tasks' && req.method === 'GET') {
+      return send(res, 200, { tasks: deps.store.recentTasks(RECENT_TASKS).map((t) => overviewJson(t, secrets)) });
+    }
+
     if (path === '/tasks') {
-      if (req.method !== 'POST') return fail(res, 405, 'metodo', 'Usa POST');
+      if (req.method !== 'POST') return fail(res, 405, 'metodo', 'Usa GET o POST');
       if (!deps.isReady()) return fail(res, 503, 'no_listo', 'El agente no está listo');
       readBody(req).then(
         (raw) => {
@@ -186,6 +231,63 @@ export function createHandler(deps: AppDeps): (req: http.IncomingMessage, res: h
       const task = deps.store.get(m[1]!);
       if (!task) return fail(res, 404, 'no_existe', 'No existe esa tarea');
       return send(res, 200, { estado: task.estado, resumen: task.resumen });
+    }
+
+    // Observatorio: rutas de sólo lectura con el mismo token y el mismo freno a la fuerza bruta.
+    const view = TASK_VIEW_PATH.exec(path);
+    if (view) {
+      if (req.method !== 'GET') return fail(res, 405, 'metodo', 'Usa GET');
+      const task = deps.store.taskOverview(view[1]!);
+      if (!task) return fail(res, 404, 'no_existe', 'No existe esa tarea');
+      if (view[2] === 'events') {
+        const events = deps.store.events(task.id).map((e) => ({ at: e.at, stage: e.stage, data: redactValue(e.data, secrets) }));
+        return send(res, 200, { task: overviewJson(task, secrets), events });
+      }
+      const f = deps.frames?.frame(task.id);
+      if (!f) return fail(res, 404, 'sin_captura', 'No hay captura en memoria para esa tarea');
+      return sendView(res, 'image/png', f.png, {
+        'X-Frame-At': String(f.at),
+        'X-Frame-Size': `${f.width}x${f.height}`,
+        'X-Frame-Action': f.action,
+        'X-Frame-Points': f.points.map(([x, y]) => `${x},${y}`).join(';'),
+      });
+    }
+
+    if (path === '/knowledge') {
+      if (req.method !== 'GET') return fail(res, 405, 'metodo', 'Usa GET');
+      const apps = deps.store.listKnowledge().map((k) => ({
+        app: k.app,
+        lessons: k.lessons
+          .split('\n')
+          .map((l) => redact(l.trim(), secrets))
+          .filter(Boolean),
+        slowdown_ms: k.slowdownMs,
+        tasks: k.tasks,
+        updated_at: k.updatedAt,
+      }));
+      const history = deps.store
+        .eventsByStage(KNOWLEDGE_STAGES, 100)
+        .map((e) => ({ task_id: e.taskId, at: e.at, stage: e.stage, data: redactValue(e.data, secrets) }));
+      return send(res, 200, { apps, history });
+    }
+
+    if (path === '/ui/incidente.json') {
+      if (req.method !== 'GET') return fail(res, 405, 'metodo', 'Usa GET');
+      incidentData().then(
+        (d) => send(res, 200, d),
+        () => fail(res, 404, 'no_existe', 'No hay datos del incidente en este despliegue'),
+      );
+      return;
+    }
+
+    const asset = UI_ASSET_PATH.exec(path);
+    if (asset) {
+      if (req.method !== 'GET') return fail(res, 405, 'metodo', 'Usa GET');
+      uiAsset(asset[1]!).then(
+        (b) => (b ? sendView(res, 'image/png', b) : fail(res, 404, 'no_existe', 'No existe ese archivo')),
+        () => fail(res, 404, 'no_existe', 'No existe ese archivo'),
+      );
+      return;
     }
 
     fail(res, 404, 'no_existe', 'Ruta desconocida');

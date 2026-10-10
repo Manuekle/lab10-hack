@@ -97,6 +97,41 @@ function toTask(r: DbRow): TaskRow {
   };
 }
 
+export interface TaskOverview {
+  id: string;
+  tarea: string;
+  estado: Estado;
+  fase: Fase;
+  resumen: string;
+  createdAt: number;
+  finishedAt: number | null;
+  cost: number;
+  steps: number;
+}
+
+type OverviewRow = Omit<DbRow, 'desktop_key' | 'updated_at'> & { cost: number | null; steps: number | null };
+
+// Costo: suma de lo que reportó cada inferencia. Pasos: el número de propuesta más alto registrado.
+const OVERVIEW = `
+  SELECT t.id, t.tarea, t.estado, t.fase, t.resumen, t.created_at, t.finished_at,
+    (SELECT SUM(json_extract(e.data, '$.cost')) FROM events e WHERE e.task_id = t.id) AS cost,
+    (SELECT MAX(json_extract(e.data, '$.step')) FROM events e WHERE e.task_id = t.id) AS steps
+  FROM tasks t`;
+
+function toOverview(r: OverviewRow): TaskOverview {
+  return {
+    id: r.id,
+    tarea: r.tarea,
+    estado: r.estado,
+    fase: r.fase,
+    resumen: r.resumen,
+    createdAt: r.created_at,
+    finishedAt: r.finished_at,
+    cost: Number(r.cost ?? 0),
+    steps: Number(r.steps ?? 0),
+  };
+}
+
 export class TaskStore {
   private readonly db: DatabaseSync;
   private readonly now: () => number;
@@ -211,6 +246,34 @@ export class TaskStore {
          ON CONFLICT(app) DO UPDATE SET lessons = excluded.lessons, slowdown_ms = excluded.slowdown_ms, tasks = app_knowledge.tasks + 1, updated_at = excluded.updated_at`,
       )
       .run(app, update.lessons ?? prev?.lessons ?? '', update.slowdownMs ?? prev?.slowdownMs ?? 0, t);
+  }
+
+  // Observatorio (sólo lectura): tareas recientes con costo y pasos acumulados en sus eventos. Sin desktop_key.
+  recentTasks(limit: number): TaskOverview[] {
+    return (this.db.prepare(`${OVERVIEW} ORDER BY t.created_at DESC LIMIT ?`).all(limit) as unknown as OverviewRow[]).map(toOverview);
+  }
+
+  taskOverview(id: string): TaskOverview | undefined {
+    const r = this.db.prepare(`${OVERVIEW} WHERE t.id = ?`).get(id) as OverviewRow | undefined;
+    return r ? toOverview(r) : undefined;
+  }
+
+  listKnowledge(): AppKnowledge[] {
+    const rows = this.db.prepare('SELECT app, lessons, slowdown_ms, tasks, updated_at FROM app_knowledge ORDER BY updated_at DESC').all() as Array<{
+      app: string;
+      lessons: string;
+      slowdown_ms: number;
+      tasks: number;
+      updated_at: number;
+    }>;
+    return rows.map((r) => ({ app: r.app, lessons: r.lessons, slowdownMs: r.slowdown_ms, tasks: r.tasks, updatedAt: r.updated_at }));
+  }
+
+  eventsByStage(stages: readonly string[], limit: number): Array<{ taskId: string; at: number; stage: string; data: Record<string, unknown> }> {
+    const rows = this.db
+      .prepare(`SELECT task_id, at, stage, data FROM events WHERE stage IN (${stages.map(() => '?').join(', ')}) ORDER BY id DESC LIMIT ?`)
+      .all(...stages, limit) as Array<{ task_id: string; at: number; stage: string; data: string }>;
+    return rows.map((r) => ({ taskId: r.task_id, at: r.at, stage: r.stage, data: JSON.parse(r.data) as Record<string, unknown> }));
   }
 
   ping(): boolean {

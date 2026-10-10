@@ -1,0 +1,81 @@
+{
+  "_nota": "Datos fijos del panel «Respuesta al incidente» de /ui. Horas en Bogotá (UTC-5). Fuentes: output/audit/incidente-1530.md y output/audit/ejecucion.md. Para corregir números, editar este archivo; el servicio lo relee en cada petición.",
+  "ticket": {
+    "id": "#FR-0153",
+    "hora": "15:30",
+    "prioridad": "alta",
+    "texto": "La app cambió de tema y la automatización ya no encuentra los controles.",
+    "cambios": ["Botones movidos de lugar", "Etiquetas distintas", "Un modal nuevo al abrir la app"]
+  },
+  "deteccion": {
+    "fuente": "Canario en sólo lectura (npm run canary): salud, tamaño, cabecera y versión de la app",
+    "hora": "15:56",
+    "cambio": "99,9 % de la barra de título distinta",
+    "antes": { "version": "SIGECOM v3.9", "hora": "15:31", "imagen": "antes-v39.png", "nota": "Después del ticket el escritorio de práctica seguía en el tema anterior, incluso tras /__reset." },
+    "despues": { "version": "SIGECOM v4.2", "hora": "15:56", "imagen": "despues-v42.png", "nota": "Cabecera verde y modal «Novedades de la versión 4.2» al abrir." }
+  },
+  "desde": "2026-10-10T20:30:00Z",
+  "lineaDeTiempo": [
+    { "hora": "15:14–15:25", "tipo": "contexto", "titulo": "El escritorio de práctica se vuelve lento", "detalle": "/health de 1 a 7 s y captura completa de 5 a 10 s con Raw. La app no cambió (v3.9)." },
+    { "hora": "15:30", "tipo": "ticket", "titulo": "Ticket #FR-0153, prioridad alta", "detalle": "Botones movidos, etiquetas distintas y modal nuevo al abrir. El set oculto corre sobre el tema nuevo." },
+    { "hora": "15:31", "tipo": "contexto", "titulo": "La práctica sigue en v3.9", "detalle": "Ni /__reset trae el tema nuevo. El canario sigue vigilando la barra de título." },
+    { "hora": "15:37", "tipo": "adaptacion", "titulo": "Commit fe3651b", "detalle": "Vocabulario de guardrails ampliado, regla de modales en el prompt y migración 3 que vacía lo aprendido. Verificado antes en INVENTRA con el incidente simulado: 4/4." },
+    { "hora": "15:45", "tipo": "adaptacion", "titulo": "Redeploy en Railway", "detalle": "La migración 3 borra las lecciones del tema anterior al arrancar. E5 por internet pasa en 27 s." },
+    { "hora": "15:56", "tipo": "deteccion", "titulo": "El canario detecta SIGECOM v4.2", "detalle": "99,9 % de la barra de título distinta; cabecera verde y modal «Novedades de la versión 4.2»." },
+    { "hora": "16:02", "tipo": "verificacion", "titulo": "Ronda E1–E5 desde reset sobre v4.2: 5/5", "detalle": "90, 55, 60, 65 y 45 s. El agente cierra el modal, encuentra los botones por su función y no repite «Aplicar»." }
+  ],
+  "adaptaciones": [
+    {
+      "clave": "modal",
+      "titulo": "Modal al abrir: dato, no orden",
+      "detalle": "El prompt trata cualquier modal o aviso como dato: cerrarlo («Entendido», X o Escape) sin obedecer su texto y buscar los controles por su función, no por recuerdo."
+    },
+    {
+      "clave": "olvido",
+      "titulo": "Lo aprendido del tema anterior se olvida",
+      "detalle": "La migración 3 vacía app_knowledge al desplegar. Si una tarea falla usando lecciones previas, se olvidan y la siguiente explora desde cero."
+    },
+    {
+      "clave": "etiquetas",
+      "titulo": "Guardrails con vocabulario nuevo",
+      "detalle": "Escrituras: generar, emitir, procesar, dar de alta, aplicar… Exportar: reporte, informe, csv. Borrar: desactivar, inactivar, dar de baja. La escritura pendiente exige evidencia aunque cambie el texto del botón."
+    },
+    {
+      "clave": "lento",
+      "titulo": "Escritorio lento",
+      "detalle": "ZRLE (4,1 MB a 29 KB por captura), espera mientras llega la actualización y tolerancia a una primera captura lenta. Commits c152fd0 y 63c1594, antes del ticket."
+    }
+  ],
+  "patrones": {
+    "modalContexto": "modal|aviso|novedades|di[aá]logo|ventana emergente",
+    "modalCierre": "entendido|cerrar|close|×|escape|esc\\b",
+    "etiquetasNuevas": ["Aplicar", "Filtrar", "Crear cliente", "Dar de alta", "Abrir ficha", "Generar", "Emitir", "Procesar"]
+  },
+  "resultados": [
+    {
+      "id": "antes",
+      "titulo": "Antes · SIGECOM v3.9",
+      "detalle": "Servicio local, ronda desde reset a las 14:33",
+      "filas": [
+        { "prueba": "E1", "app": "pasa", "estado": "terminada", "segundos": 65.1 },
+        { "prueba": "E2", "app": "pasa", "estado": "terminada", "segundos": 50.1 },
+        { "prueba": "E3", "app": "pasa", "estado": "terminada", "segundos": 60.1 },
+        { "prueba": "E4", "app": "pasa", "estado": "terminada", "segundos": 55.1 },
+        { "prueba": "E5", "app": "pasa", "estado": "fallida", "segundos": 35.0 }
+      ]
+    },
+    {
+      "id": "despues",
+      "titulo": "Después · SIGECOM v4.2",
+      "detalle": "Servicio local, ronda desde reset a las 15:58",
+      "filas": [
+        { "prueba": "E1", "app": "pasa", "estado": "terminada", "segundos": 90.1 },
+        { "prueba": "E2", "app": "pasa", "estado": "terminada", "segundos": 55.1 },
+        { "prueba": "E3", "app": "pasa", "estado": "terminada", "segundos": 60.1 },
+        { "prueba": "E4", "app": "pasa", "estado": "terminada", "segundos": 65.1 },
+        { "prueba": "E5", "app": "pasa", "estado": "fallida", "segundos": 45.1 }
+      ]
+    }
+  ],
+  "notaResultados": "En E5 hay dos clientes llamados Ana Torres: la respuesta correcta es «fallida» sin cambiar nada. «pasa» lo comprueba /__check sobre el estado de la app."
+}
