@@ -50,4 +50,9 @@ test('intención: la tarea, no la pantalla, autoriza borrar o exportar', () => {
   assert.equal(intentViolation('Exporta el reporte de pedidos entregados', p('Botón Exportar')), null);
   assert.match(intentViolation('¿Cuántos pedidos hay?', p('Exportar'))!, /no pide exportar/);
   assert.equal(intentViolation('Registra al cliente X', p('Botón Guardar')), null);
+  // Etiquetas de un tema nuevo
+  assert.match(intentViolation('¿Cuántos pedidos hay?', p('Botón Generar reporte'))!, /no pide exportar/);
+  assert.equal(intentViolation('Exporta el reporte de pedidos', p('Botón Generar reporte')), null);
+  assert.match(intentViolation('Corrige el teléfono de X', p('Botón Desactivar cliente'))!, /no pide eliminar/);
+  assert.equal(intentViolation('Desactiva al cliente X', p('Botón Desactivar')), null);
 });

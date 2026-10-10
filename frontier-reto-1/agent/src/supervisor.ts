@@ -39,14 +39,14 @@ const MAX_NO_PROGRESS = 8;
 const MAX_FINISH_REJECTIONS = 3;
 const MIN_EVIDENCE = 8;
 
-// Acciones que confirman cambios en la app.
+// Acciones que confirman cambios en la app. Vocabulario amplio: un tema nuevo puede renombrar los botones (incidente 15:30).
 const COMMIT =
-  /guardar|grabar|crear|registrar|aceptar|confirmar|exportar|eliminar|borrar|anular|enviar|actualizar|aplicar|descargar|save|submit|export|delete|confirm|apply|download/i;
-const DELETE_ACTION = /eliminar|borrar|anular|suprimir|quitar|delete|remove/i;
-const EXPORT_ACTION = /exportar|export|descargar|download/i;
+  /guardar|grabar|salvar|crear|registrar|dar de alta|aceptar|confirmar|exportar|eliminar|borrar|anular|desactivar|inactivar|enviar|actualizar|aplicar|descargar|generar|emitir|procesar|publicar|save|submit|export|delete|confirm|apply|download|generate|create|update/i;
+const DELETE_ACTION = /eliminar|borrar|anular|suprimir|quitar|desactivar|inactivar|dar de baja|delete|remove/i;
+const EXPORT_ACTION = /exportar|export|descargar|download|reporte|informe|csv|excel/i;
 // Intención en la TAREA (no en la pantalla). "Borrador" o "anuladas" no son órdenes.
-const DELETE_INTENT = /\b(elim[ií]n|b[oó]rr[aeáo](?!d)|anul[aeáo](?!d)|quit[aeáo]|remuev|suprim|de baja|delete|remove)/i;
-const EXPORT_INTENT = /\b(export|report|descarg|download|csv|excel)/i;
+const DELETE_INTENT = /\b(elim[ií]n|b[oó]rr[aeáo](?!d)|anul[aeáo](?!d)|quit[aeáo]|remuev|suprim|de baja|desactiv[aeá](?!d)|inactiv[aeá](?!d)|delete|remove)/i;
+const EXPORT_INTENT = /\b(export|report|informe|descarg|download|csv|excel)/i;
 
 class StopError extends Error {}
 

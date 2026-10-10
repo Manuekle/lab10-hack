@@ -82,6 +82,9 @@ export class TaskMemory {
     if (this.noChangeStreak >= 2) {
       w.push(`Llevas ${this.noChangeStreak} acciones seguidas sin cambio visible. No repitas lo mismo: revisa coordenadas, cierra lo que tape la vista, espera o usa otro camino.`);
     }
+    if (this.knowledge && this.noChangeStreak >= 2) {
+      w.push('Las pistas aprendidas de tareas anteriores pueden estar desactualizadas (la app pudo cambiar de versión o de tema): ignóralas y explora la pantalla actual.');
+    }
     if (this.repeatStreak >= 1) {
       w.push('Repetiste la misma acción. Si no produjo lo esperado, cambia de estrategia.');
     }
