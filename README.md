@@ -1,0 +1,34 @@
+# lab10-hack
+
+Trabajo de Manuel Erazo para el Reto 1 de Frontier BOG/26 de Lab10: diseño de un agente que opera sistemas sin API a través de un escritorio remoto.
+
+## Sitio
+
+[Ver el Systems design en GitHub Pages](https://manuekle.github.io/lab10-hack/).
+
+La página de entrada abre el [HTML del diseño](frontier-reto-1/output/html/reto1-systems-design.html). Las rutas originales se conservan para que sus enlaces a documentos, PDFs y evidencia funcionen.
+
+## Contenido
+
+- [`frontier-reto-1/`](frontier-reto-1/README.md): instrucciones del reto, pruebas de práctica, diseño técnico y entregables.
+- [`frontier-reto-1/pruebas/`](frontier-reto-1/pruebas/): cinco tareas de práctica en JSON.
+- [Diseño técnico](frontier-reto-1/docs/superpowers/specs/2026-10-10-reto1-design.md).
+- [Auditoría visual de SIGECOM](frontier-reto-1/output/audit/auditoria-sigecom.md).
+- [Systems design en PDF](frontier-reto-1/output/pdf/reto1-systems-design.pdf) y [diagrama en PDF](frontier-reto-1/output/pdf/reto1-arquitectura.pdf).
+- [`cooper/`](cooper/README.md): recursos tipográficos y notas de uso.
+
+## Publicación
+
+GitHub Pages publica la rama `main` desde la raíz (`/`). El archivo `.nojekyll` permite servir el contenido estático directamente. Cada cambio enviado a `main` actualiza el sitio.
+
+Para revisar el sitio localmente, desde la raíz del repositorio:
+
+```sh
+python3 -m http.server 8000
+```
+
+Abrir `http://localhost:8000/`.
+
+## Archivos locales
+
+`.gitignore` excluye las carpetas e instrucciones de agentes, el registro de skills, credenciales, dependencias y archivos temporales. De `output/` se conservan el HTML, los PDFs finales y el informe de auditoría con sus evidencias; las capturas de revisión del diseño y las imágenes de previsualización quedan fuera del repositorio.

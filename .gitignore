@@ -1,0 +1,34 @@
+# Local agent tools and instructions
+.agents/
+.claude/
+.codex/
+AGENTS.md
+CLAUDE.md
+CODEX.md
+skills-lock.json
+
+# Local files, credentials and dependencies
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.log
+node_modules/
+.cache/
+.next/
+dist/
+build/
+coverage/
+_site/
+
+# Generated output: keep the site, final PDFs and linked audit evidence
+**/output/**
+!**/output/**/
+!**/output/html/*.html
+!**/output/pdf/*.pdf
+!**/output/audit/*.md
+!**/output/audit/*.jpg
+**/output/audit/systems-design-*
