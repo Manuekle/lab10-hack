@@ -20,7 +20,8 @@
     "dev": "node --env-file-if-exists=.env src/main.ts",
     "task": "node --env-file-if-exists=.env scripts/run-task.ts",
     "practice": "node --env-file-if-exists=.env scripts/practice.ts",
-    "canary": "node --env-file-if-exists=.env scripts/canary.ts"
+    "canary": "node --env-file-if-exists=.env scripts/canary.ts",
+    "transfer": "node --env-file-if-exists=.env scripts/transfer.ts"
   },
   "devDependencies": {
     "@types/node": "26.6.3",
