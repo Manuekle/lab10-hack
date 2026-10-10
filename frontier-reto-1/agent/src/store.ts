@@ -59,6 +59,8 @@ const MIGRATIONS: string[] = [
     updated_at INTEGER NOT NULL
   );
   `,
+  // 3 (incidente 15:30): la app cambió de tema; lo aprendido del tema anterior ya no describe la UI. Se reaprende.
+  `DELETE FROM app_knowledge;`,
 ];
 
 export interface AppKnowledge {

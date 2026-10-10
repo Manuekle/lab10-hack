@@ -73,3 +73,16 @@ test('conocimiento por aplicación: crear, actualizar y conservar lecciones', ()
   assert.equal(k.slowdownMs, 800);
   assert.equal(k.tasks, 2);
 });
+
+test('migración del incidente: lo aprendido antes del tema nuevo se borra una sola vez', () => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'agent-store-')), 'k.db');
+  const a = TaskStore.open(file);
+  a.saveKnowledge('sigecom', { lessons: '- vieja', slowdownMs: 0 });
+  a.close();
+  const b = TaskStore.open(file);
+  b.saveKnowledge('sigecom', { lessons: '- nueva', slowdownMs: 0 });
+  b.close();
+  const c = TaskStore.open(file);
+  assert.equal(c.getKnowledge('sigecom')!.lessons, '- nueva');
+  c.close();
+});
