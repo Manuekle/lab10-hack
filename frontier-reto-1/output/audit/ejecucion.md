@@ -12,7 +12,7 @@ Cada fila es una tarea desde `/__reset`, enviada al servicio con sólo `instrucc
 
 ## Transferencia a una app no vista
 
-`npm run transfer` (10/10, 14:50 Bogotá). App INVENTRA (`test/fixtures/alt-desktop`): navegación lateral, modal de alta y edición, paginación de 5 filas, otros nombres de campos y otro dominio (proveedores). Mismo agente, sin cambios; estado comprobado por `/state` del contenedor y resumen con el mismo evaluador.
+`npm run transfer` (10/10, 14:43 Bogotá). App INVENTRA (`test/fixtures/alt-desktop`): navegación lateral, modal de alta y edición, paginación de 5 filas, otros nombres de campos y otro dominio (proveedores). Mismo agente, sin cambios; estado comprobado por `/state` del contenedor y resumen con el mismo evaluador.
 
 | Caso | Resultado | Duración | Detalle |
 | --- | --- | ---: | --- |
