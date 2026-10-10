@@ -1,0 +1,945 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Observatorio del agente</title>
+<style>
+:root {
+  --paper: #e8ecf0;
+  --card: #ffffff;
+  --ink: #16202a;
+  --muted: #586572;
+  --rule: #cfd6de;
+  --rule-strong: #a7b2bd;
+  --titlebar: #16202a;
+  --titlebar-ink: #eef2f5;
+  --v39: #23406b;
+  --v42: #2b4a3a;
+  --ok: #1d7549;
+  --ok-tint: #e2f1e8;
+  --alert: #9a5800;
+  --alert-tint: #fcefd5;
+  --forget: #a13a2a;
+  --forget-tint: #f8e3df;
+  --focus: #2f6fd0;
+  --display: "DIN Condensed", "DIN Alternate", "Bahnschrift SemiBold Condensed", "Bahnschrift", "Arial Narrow", system-ui, sans-serif;
+  --body: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0e141a;
+    --card: #161f28;
+    --ink: #e4eaef;
+    --muted: #98a6b3;
+    --rule: #2a3643;
+    --rule-strong: #3d4b59;
+    --titlebar: #070b0f;
+    --titlebar-ink: #e4eaef;
+    --v39: #86a8da;
+    --v42: #7fc19d;
+    --ok: #5cc48c;
+    --ok-tint: #12291c;
+    --alert: #f0aa3c;
+    --alert-tint: #33250c;
+    --forget: #f08068;
+    --forget-tint: #351813;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.5 var(--body); }
+[hidden] { display: none !important; }
+a { color: inherit; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+h1, h2, h3 { margin: 0; font-weight: 700; line-height: 1.15; }
+.label { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+/* Barra de título: la misma forma que la cabecera de la app que opera el agente. */
+.topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 28px; min-height: 52px; padding: 0 20px; background: var(--titlebar); color: var(--titlebar-ink); }
+.brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.brand-mark { width: 18px; height: 18px; background: linear-gradient(135deg, #23406b 0 50%, #2b4a3a 50% 100%); border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+.brand strong { font-family: var(--display); font-size: 22px; letter-spacing: .03em; text-transform: uppercase; display: block; line-height: 1; padding-top: 3px; }
+.brand span { font-size: 11px; opacity: .7; }
+.tabs { display: flex; gap: 22px; overflow-x: auto; scrollbar-width: none; }
+.tabs a { text-decoration: none; padding: 15px 0 13px; border-bottom: 3px solid transparent; opacity: .72; white-space: nowrap; font-weight: 600; font-size: 14px; }
+.tabs a:hover { opacity: 1; }
+.tabs a[aria-current="page"] { opacity: 1; border-color: #f0aa3c; }
+.tabs .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #f0aa3c; margin-right: 7px; vertical-align: 1px; }
+.session { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 12px; white-space: nowrap; }
+.live { opacity: .8; }
+.live.warn { color: #f0aa3c; opacity: 1; }
+.session button { background: transparent; border: 1px solid rgba(255,255,255,.3); border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+.session button:hover { border-color: rgba(255,255,255,.7); }
+
+main { max-width: 1480px; margin: 0 auto; padding: 22px 20px 60px; }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; }
+.empty { padding: 28px; color: var(--muted); text-align: center; }
+.error-note { padding: 12px 14px; border-radius: 6px; background: var(--forget-tint); color: var(--forget); margin-bottom: 16px; }
+
+/* Acceso */
+.login { min-height: calc(100vh - 140px); display: grid; place-items: center; }
+.login form { width: min(420px, 100%); padding: 28px; }
+.login h1 { font-family: var(--display); font-size: 34px; text-transform: uppercase; letter-spacing: .02em; }
+.login p { color: var(--muted); font-size: 14px; }
+.login label { display: block; font-weight: 600; margin: 18px 0 6px; font-size: 14px; }
+.login input { width: 100%; padding: 10px 12px; border: 1px solid var(--rule-strong); border-radius: 5px; background: var(--paper); font-family: var(--mono); }
+.login button { margin-top: 16px; width: 100%; padding: 11px; border: 0; border-radius: 5px; background: var(--ink); color: var(--paper); font-weight: 700; cursor: pointer; }
+.login .error { color: var(--forget); min-height: 1.5em; margin: 8px 0 0; }
+
+/* Totales */
+.totals { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 18px; }
+.stat { padding: 12px 16px; border-left: 1px solid var(--rule); }
+.stat:first-child { border-left: 0; }
+.stat b { display: block; font-family: var(--display); font-size: 30px; line-height: 1.05; font-weight: 700; font-variant-numeric: tabular-nums; padding-top: 4px; }
+.stat b.ok { color: var(--ok); }
+.stat b.bad { color: var(--forget); }
+
+/* Tareas */
+.split { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 18px; align-items: start; }
+.list { position: sticky; top: 70px; max-height: calc(100vh - 90px); overflow: auto; }
+.list h2 { padding: 14px 16px 10px; font-size: 13px; }
+.list ol { list-style: none; margin: 0; padding: 0; }
+.list a { display: grid; grid-template-columns: 10px 1fr; gap: 4px 10px; padding: 10px 16px; text-decoration: none; border-top: 1px solid var(--rule); }
+.list a:hover { background: var(--paper); }
+.list a[aria-current="true"] { background: var(--paper); box-shadow: inset 3px 0 0 var(--ink); }
+.list .t { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.list .m { grid-column: 2; font-size: 11.5px; color: var(--muted); }
+.sdot { width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; background: var(--rule-strong); }
+.sdot.terminada { background: var(--ok); }
+.sdot.fallida { background: var(--forget); }
+.sdot.en_curso { background: var(--alert); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+.chip { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.chip.terminada { background: var(--ok-tint); color: var(--ok); }
+.chip.fallida { background: var(--forget-tint); color: var(--forget); }
+.chip.en_curso { background: var(--alert-tint); color: var(--alert); }
+.task-head { padding: 18px 20px; margin-bottom: 18px; }
+.task-head .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.task-head h2 { font-size: 21px; margin: 10px 0 14px; font-weight: 650; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px 18px; margin: 0; }
+.facts div { min-width: 0; }
+.facts dt { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.facts dd { margin: 2px 0 0; font-family: var(--mono); font-size: 13.5px; overflow-wrap: anywhere; }
+.resumen { margin-top: 14px; padding: 12px 14px; border-radius: 5px; background: var(--paper); font-size: 14px; white-space: pre-wrap; }
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 18px 10px; border-bottom: 1px solid var(--rule); }
+.section-head h3 { font-size: 13px; letter-spacing: .09em; text-transform: uppercase; }
+.legend { font-size: 11.5px; color: var(--muted); display: flex; gap: 12px; }
+.legend i { display: inline-block; width: 10px; height: 6px; border-radius: 2px; margin-right: 5px; vertical-align: 1px; }
+.legend .li { background: var(--v39); }
+.legend .la { background: var(--rule-strong); }
+
+/* Cinta de pasos: la caja negra de la tarea */
+.tape ol { list-style: none; margin: 0; padding: 8px 18px 14px 0; position: relative; }
+.tape ol::before { content: ""; position: absolute; left: 88px; top: 12px; bottom: 18px; width: 2px; background: var(--rule); }
+.ev { display: grid; grid-template-columns: 64px 26px minmax(0, 1fr); gap: 0 12px; padding: 9px 0; }
+.ev .at { font: 11.5px/1 var(--mono); color: var(--muted); text-align: right; padding-top: 8px; font-variant-numeric: tabular-nums; }
+.ev .n { position: relative; z-index: 1; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--card); border: 2px solid var(--rule-strong); font: 700 10.5px/1 var(--mono); }
+.ev .b { min-width: 0; padding-top: 2px; }
+.ev .tg { font-weight: 600; font-size: 14.5px; line-height: 1.35; overflow-wrap: anywhere; }
+.ev .ac { font: 12px/1.4 var(--mono); color: var(--muted); overflow-wrap: anywhere; margin-top: 2px; }
+.ev .mt { font: 11.5px/1.4 var(--mono); color: var(--muted); margin-top: 5px; font-variant-numeric: tabular-nums; }
+.timing { display: flex; height: 6px; margin-top: 7px; border-radius: 3px; overflow: hidden; background: var(--rule); max-width: 300px; }
+.timing span:first-child { background: var(--v39); }
+.timing span:last-child { background: var(--rule-strong); }
+.ev.info .n { width: 12px; height: 12px; margin: 7px auto 0; border-width: 2px; }
+.ev.info .tg { font-weight: 500; font-size: 13.5px; }
+.ev.rejected .n { border-color: var(--forget); color: var(--forget); }
+.ev.rejected .tg { color: var(--muted); font-weight: 500; }
+.ev.rejected .why { color: var(--forget); font-size: 13px; }
+.ev.verified .n { background: var(--ok); border-color: var(--ok); color: #fff; }
+.seal { border: 1.5px solid var(--ok); border-radius: 6px; padding: 8px 12px; background: var(--ok-tint); }
+.seal .label { color: var(--ok); }
+.seal q { display: block; font-size: 13.5px; margin-top: 3px; quotes: "«" "»"; }
+.ev.finish .n { border-radius: 4px; background: var(--ink); border-color: var(--ink); color: var(--card); }
+.closing { border-radius: 6px; padding: 10px 14px; background: var(--paper); border: 1.5px solid var(--ink); }
+.closing.fallida { border-color: var(--forget); }
+.closing.terminada { border-color: var(--ok); }
+.closing p { margin: 4px 0 0; font-size: 14px; white-space: pre-wrap; }
+.ev.forget .n { border-color: var(--forget); background: var(--forget); }
+.ev.forget .tg { color: var(--forget); font-weight: 650; }
+.flag { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 700; }
+.flag.modal { background: var(--alert-tint); color: var(--alert); }
+.flag.label-new { background: var(--ok-tint); color: var(--ok); }
+.ev.modal .n { border-color: var(--alert); color: var(--alert); }
+
+/* Última captura */
+.frame { position: sticky; top: 70px; }
+.frame figure { margin: 0; padding: 14px 18px 16px; }
+.shot { position: relative; border-radius: 4px; overflow: hidden; border: 1px solid var(--rule); background: var(--paper); }
+.shot img { display: block; width: 100%; height: auto; }
+.shot svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.mark-ring { fill: none; stroke: #f0aa3c; stroke-width: 3; vector-effect: non-scaling-stroke; transform-box: fill-box; transform-origin: center; animation: ring 1.6s ease-out infinite; }
+.mark-dot { fill: #f0aa3c; stroke: #16202a; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.mark-cross { stroke: #f0aa3c; stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .75; }
+@keyframes ring { 0% { transform: scale(.6); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+.frame figcaption { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+
+/* Aprendido */
+.know { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.page-head { margin: 4px 0 18px; }
+.page-head h1 { font-family: var(--display); font-size: 40px; text-transform: uppercase; letter-spacing: .015em; }
+.page-head p { margin: 6px 0 0; color: var(--muted); max-width: 72ch; }
+.app-card { padding: 16px 20px 18px; margin-bottom: 14px; }
+.app-card h2 { font-family: var(--display); font-size: 26px; text-transform: uppercase; letter-spacing: .02em; }
+.app-card .m { font: 12px var(--mono); color: var(--muted); margin-top: 4px; }
+.app-card ul { margin: 12px 0 0; padding-left: 18px; }
+.app-card li { margin: 5px 0; font-size: 14px; }
+.hist ol { list-style: none; margin: 0; padding: 4px 0; }
+.hist li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 10px 18px; border-top: 1px solid var(--rule); }
+.hist li:first-child { border-top: 0; }
+.hist time { font: 12px var(--mono); color: var(--muted); padding-top: 2px; }
+.hist .k { font-weight: 650; font-size: 14px; }
+.hist .d { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.hist li.reset .k { color: var(--forget); }
+.hist li.pinned { background: var(--forget-tint); }
+
+/* Incidente */
+.inc-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 22px; align-items: end; padding: 22px 24px; margin-bottom: 18px; border-left: 6px solid #f0aa3c; }
+.ticket-id { grid-row: span 3; font-family: var(--display); font-size: 64px; line-height: .9; letter-spacing: .01em; color: var(--alert); padding-top: 6px; }
+.inc-head .label { color: var(--alert); }
+.inc-head h1 { font-size: 24px; font-weight: 700; }
+.inc-head ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 0; padding: 0; }
+.inc-head li { font-size: 13px; padding: 3px 10px; border-radius: 99px; background: var(--alert-tint); color: var(--alert); font-weight: 600; }
+.inc-top { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-bottom: 18px; }
+.seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 5px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 4px 12px; font-size: 12.5px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--card); }
+.compare { padding: 14px 18px 6px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.pair figure { margin: 0; min-width: 0; }
+.pair img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 4px; }
+.vtag { display: inline-block; font-family: var(--display); font-size: 19px; letter-spacing: .03em; color: #fff; padding: 3px 9px 0; border-radius: 3px; }
+.vtag.v39 { background: #23406b; }
+.vtag.v42 { background: #2b4a3a; }
+.pair figcaption { margin-top: 8px; font-size: 13px; }
+.pair figcaption .vtag { margin-right: 8px; }
+.pair figcaption p { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; }
+.wipe-stage { position: relative; border-radius: 4px; overflow: hidden; border: 1px solid var(--rule); touch-action: none; cursor: ew-resize; --cut: 50%; }
+.wipe-stage img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+.wipe-stage img.before { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--cut)) 0 0); }
+.wipe-line { position: absolute; top: 0; bottom: 0; left: var(--cut); width: 3px; margin-left: -1.5px; background: #f0aa3c; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.wipe-stage .vtag { position: absolute; bottom: 10px; }
+.wipe-stage .vtag.v39 { left: 10px; }
+.wipe-stage .vtag.v42 { right: 10px; }
+.wipe input { width: 100%; margin: 12px 0 0; accent-color: #f0aa3c; }
+.detect-note { margin: 4px 18px 16px; font-size: 13.5px; }
+.detect-note b { color: var(--v42); }
+.clock ol { list-style: none; margin: 0; padding: 6px 0 10px; position: relative; }
+.clock ol::before { content: ""; position: absolute; left: 113px; top: 18px; bottom: 22px; width: 2px; background: var(--rule); }
+.clock li { display: grid; grid-template-columns: 96px 12px minmax(0, 1fr); gap: 0 12px; padding: 9px 18px 9px 0; }
+.clock time { font: 600 12px/1.3 var(--mono); text-align: right; padding-top: 2px; }
+.clock .pin { position: relative; z-index: 1; width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; background: var(--card); border: 2px solid var(--rule-strong); }
+.clock .k { font-weight: 650; font-size: 14px; line-height: 1.3; }
+.clock .d { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.clock .ticket .pin { background: #f0aa3c; border-color: #f0aa3c; width: 16px; height: 16px; margin: 2px 0 0 -2px; }
+.clock .ticket .k, .clock .ticket time { color: var(--alert); }
+.clock .deteccion .pin { background: var(--v42); border-color: var(--v42); }
+.clock .adaptacion .pin { border-color: var(--v39); background: var(--v39); }
+.clock .verificacion .pin { background: var(--ok); border-color: var(--ok); }
+.clock .verificacion .k { color: var(--ok); }
+.adapt-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin: 6px 0 12px; }
+.adapt-head h2, .results-head h2 { font-family: var(--display); font-size: 30px; text-transform: uppercase; letter-spacing: .02em; }
+.adapt-head p { margin: 0; font-size: 13px; color: var(--muted); }
+.adapt { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; align-items: start; }
+.ad { padding: 16px 18px; display: flex; flex-direction: column; border-top: 4px solid var(--rule-strong); }
+.ad.modal { border-top-color: #f0aa3c; }
+.ad.olvido { border-top-color: var(--forget); }
+.ad.etiquetas { border-top-color: var(--ok); }
+.ad.lento { border-top-color: var(--v39); }
+.ad h3 { font-size: 15.5px; }
+.ad > p { font-size: 12.5px; color: var(--muted); margin: 6px 0 12px; }
+.count { display: flex; align-items: baseline; gap: 8px; border-top: 1px solid var(--rule); padding-top: 10px; }
+.count b { font-family: var(--display); font-size: 42px; line-height: 1; font-variant-numeric: tabular-nums; padding-top: 4px; }
+.count span { font-size: 12.5px; color: var(--muted); line-height: 1.3; }
+.ad ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.ad li { font-size: 12.5px; padding: 6px 0; border-top: 1px dashed var(--rule); }
+.ad li a { text-decoration: none; }
+.ad li a:hover .tg { text-decoration: underline; }
+.ad li .tg { font-weight: 600; display: block; overflow-wrap: anywhere; }
+.ad li .sub { color: var(--muted); font-family: var(--mono); font-size: 11.5px; }
+.ad li .ok { color: var(--ok); font-weight: 600; font-size: 11.5px; }
+.ad li q { display: block; margin-top: 2px; color: var(--ink); quotes: "«" "»"; }
+.results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.score { font-family: var(--display); font-size: 24px; letter-spacing: .02em; }
+.score .v39 { color: var(--v39); }
+.score .v42 { color: var(--v42); }
+.res { padding: 6px 0; }
+.res-row { display: grid; grid-template-columns: 54px minmax(0, 1fr) minmax(0, 1fr) 76px; gap: 18px; align-items: center; padding: 10px 20px; border-top: 1px solid var(--rule); }
+.res-row:first-child { border-top: 0; }
+.res-row.head { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding-top: 12px; padding-bottom: 8px; }
+.res-row .p { font-family: var(--display); font-size: 24px; padding-top: 3px; }
+.cell { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+.rbar { height: 10px; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.rbar span { display: block; height: 100%; }
+.cell.v39 .rbar span { background: var(--v39); }
+.cell.v42 .rbar span { background: var(--v42); }
+.cell .s { font: 13px var(--mono); font-variant-numeric: tabular-nums; }
+.cell .e { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.cell .e b { color: var(--ok); }
+.delta { font: 13px var(--mono); text-align: right; color: var(--muted); }
+.res-note { font-size: 12.5px; color: var(--muted); padding: 10px 20px 14px; border-top: 1px solid var(--rule); margin: 0; }
+
+@media (max-width: 1100px) {
+  .adapt { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .detail-grid, .inc-top, .know { grid-template-columns: minmax(0, 1fr); }
+  .frame { position: static; }
+  .totals { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stat:nth-child(4) { border-left: 0; }
+  .stat:nth-child(n+4) { border-top: 1px solid var(--rule); }
+}
+@media (max-width: 760px) {
+  .topbar { flex-wrap: wrap; gap: 4px 16px; padding: 8px 16px 0; }
+  .session { order: 2; }
+  .tabs { order: 3; width: 100%; }
+  main { padding: 16px 16px 48px; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .list { position: static; max-height: 300px; }
+  .adapt, .pair { grid-template-columns: minmax(0, 1fr); }
+  .inc-head { grid-template-columns: minmax(0, 1fr); }
+  .ticket-id { grid-row: auto; font-size: 48px; }
+  .res-row { grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr); gap: 10px; padding: 10px 14px; }
+  .res-row .delta { display: none; }
+  .totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat:nth-child(odd) { border-left: 0; }
+  .stat:nth-child(4) { border-left: 1px solid var(--rule); }
+  .stat:nth-child(n+3) { border-top: 1px solid var(--rule); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mark-ring, .sdot.en_curso { animation: none; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark" aria-hidden="true"></span><div><strong>Observatorio</strong><span>Agente Reto 1 · sólo lectura</span></div></div>
+  <nav class="tabs" aria-label="Vistas">
+    <a href="#/tareas" data-view="tareas">Tareas</a>
+    <a href="#/aprendido" data-view="aprendido">Aprendido</a>
+    <a href="#/incidente" data-view="incidente"><span class="dot" aria-hidden="true"></span>Incidente 15:30</a>
+  </nav>
+  <div class="session"><span id="live" class="live" role="status"></span><button id="logout" type="button" hidden>Cerrar sesión</button></div>
+</header>
+<main>
+  <section id="login" class="login" hidden>
+    <form id="login-form" class="card" novalidate>
+      <h1>Observatorio</h1>
+      <p>Muestra lo que vio e hizo el agente en cada tarea. Escribe el token del equipo: se guarda sólo en esta pestaña y viaja en cada llamada como <span class="mono">Authorization: Bearer</span>.</p>
+      <label for="token">Token del equipo</label>
+      <input id="token" name="token" type="password" autocomplete="off" spellcheck="false" autocapitalize="off">
+      <p id="login-error" class="error" role="alert"></p>
+      <button type="submit">Entrar</button>
+    </form>
+  </section>
+  <section id="view-tareas" hidden>
+    <div id="totals" class="totals card"></div>
+    <div class="split">
+      <aside class="list card" aria-labelledby="list-title"><h2 id="list-title" class="label">Últimas 50 tareas</h2><ol id="task-list"></ol></aside>
+      <div id="detail"></div>
+    </div>
+  </section>
+  <section id="view-aprendido" hidden></section>
+  <section id="view-incidente" hidden></section>
+</main>
+<script>
+'use strict';
+(() => {
+  const TOKEN_KEY = 'observatorio.token';
+  const ID = /^[A-Za-z0-9_-]{1,64}$/;
+  const TZ = 'America/Bogota';
+  const fmtTime = new Intl.DateTimeFormat('es-CO', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+  const fmtShort = new Intl.DateTimeFormat('es-CO', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const fmtDay = new Intl.DateTimeFormat('es-CO', { timeZone: TZ, day: 'numeric', month: 'short' });
+  const num = new Intl.NumberFormat('es-CO');
+  const pct = new Intl.NumberFormat('es-CO', { style: 'percent', maximumFractionDigits: 1 });
+  const DEFAULT_PATTERNS = { modalContexto: 'modal|aviso|novedades|di[aá]logo', modalCierre: 'entendido|cerrar|close|×|escape', etiquetasNuevas: [] };
+  const DELETE_WORDS = /elimin|borr|anul|suprim|dar de baja|desactiv|inactiv|delete|remove/i;
+
+  const state = {
+    token: null, view: 'tareas', taskId: null, tasks: [], detail: null,
+    frame: { taskId: null, at: 0, url: null }, knowledge: null, incident: null,
+    incEvents: new Map(), assets: new Map(), last: { list: 0, know: 0, inc: 0 },
+  };
+
+  class Stop extends Error {}
+
+  // Construye nodos sin innerHTML: todo dato del API entra como texto.
+  function h(tag, props, ...kids) {
+    const el = document.createElement(tag);
+    if (props) {
+      for (const [k, v] of Object.entries(props)) {
+        if (v === null || v === undefined || v === false) continue;
+        if (k === 'class') el.className = v;
+        else if (k === 'text') el.textContent = v;
+        else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+        else el.setAttribute(k, v === true ? '' : String(v));
+      }
+    }
+    for (const c of kids.flat(Infinity)) if (c !== null && c !== undefined && c !== false) el.append(c instanceof Node ? c : String(c));
+    return el;
+  }
+  const svg = (tag, attrs) => {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    return el;
+  };
+  const $ = (id) => document.getElementById(id);
+  const clock = (ms) => (ms ? fmtTime.format(new Date(ms)) : '—');
+  const secs = (ms) => (ms >= 60_000 ? `${Math.floor(ms / 60_000)} min ${Math.round((ms % 60_000) / 1000)} s` : `${(ms / 1000).toFixed(1).replace('.', ',')} s`);
+  const money = (n) => `US$ ${Number(n || 0).toFixed(4)}`;
+  const taskHref = (id) => (ID.test(id) ? `#/tareas/${id}` : '#/tareas');
+  const durationOf = (t) => (t.finished_at ?? Date.now()) - t.created_at;
+  const short = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+  const regex = (src, fallback) => {
+    try { return new RegExp(src, 'i'); } catch { return new RegExp(fallback, 'i'); }
+  };
+
+  // ---------- sesión ----------
+  function readToken() { try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; } }
+  function writeToken(v) { try { if (v) sessionStorage.setItem(TOKEN_KEY, v); else sessionStorage.removeItem(TOKEN_KEY); } catch { /* sin almacenamiento: sólo en memoria */ } }
+
+  function setLive(text, warn = false) {
+    const el = $('live');
+    el.textContent = text;
+    el.classList.toggle('warn', warn);
+  }
+
+  function signOut(message) {
+    state.token = null;
+    writeToken(null);
+    for (const u of state.assets.values()) URL.revokeObjectURL(u);
+    state.assets.clear();
+    if (state.frame.url) URL.revokeObjectURL(state.frame.url);
+    state.frame = { taskId: null, at: 0, url: null };
+    state.tasks = []; state.detail = null; state.knowledge = null; state.incEvents.clear();
+    $('logout').hidden = true;
+    setLive('');
+    for (const v of ['tareas', 'aprendido', 'incidente']) $(`view-${v}`).hidden = true;
+    $('login').hidden = false;
+    $('login-error').textContent = message || '';
+    $('token').value = '';
+    $('token').focus();
+  }
+
+  async function api(path, as = 'json') {
+    if (!state.token) throw new Stop();
+    const r = await fetch(path, { headers: { Authorization: `Bearer ${state.token}` }, cache: 'no-store', credentials: 'omit' });
+    if (r.status === 401) { signOut('El servicio rechazó el token. Escríbelo de nuevo.'); throw new Stop(); }
+    if (r.status === 429) { setLive('Demasiados intentos fallidos desde esta red: espera un minuto.', true); throw new Stop(); }
+    if (as === 'raw') return r;
+    if (!r.ok) {
+      let msg = `El servicio respondió ${r.status}`;
+      try { msg = (await r.json()).error.message || msg; } catch { /* cuerpo no JSON */ }
+      throw new Error(msg);
+    }
+    return as === 'blob' ? r.blob() : r.json();
+  }
+
+  async function asset(name) {
+    if (state.assets.has(name)) return state.assets.get(name);
+    const url = URL.createObjectURL(await api(`/ui/assets/${encodeURIComponent(name)}`, 'blob'));
+    state.assets.set(name, url);
+    return url;
+  }
+
+  // ---------- navegación ----------
+  function route() {
+    const m = /^#\/(tareas|aprendido|incidente)(?:\/([A-Za-z0-9_-]{1,64}))?$/.exec(location.hash);
+    const prev = state.view;
+    state.view = m ? m[1] : 'tareas';
+    if (prev !== state.view) window.scrollTo(0, 0);
+    if (state.view === 'tareas' && m && m[2]) state.taskId = m[2];
+    for (const a of document.querySelectorAll('.tabs a')) {
+      if (a.dataset.view === state.view) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    }
+    if (!state.token) return;
+    for (const v of ['tareas', 'aprendido', 'incidente']) $(`view-${v}`).hidden = v !== state.view;
+    refresh(true);
+  }
+
+  let busy = false;
+  let again = false;
+  async function refresh(force = false) {
+    if (!state.token) return;
+    if (busy) { again = again || force; return; }
+    busy = true;
+    try {
+      const now = Date.now();
+      const running = state.tasks.some((t) => t.estado === 'en_curso');
+      if (state.view === 'tareas') {
+        if (force || now - state.last.list > (running ? 4_000 : 15_000)) await loadList();
+        const d = state.detail;
+        if (state.taskId && (force || !d || d.task.id !== state.taskId || d.task.estado === 'en_curso')) await loadDetail();
+      } else if (state.view === 'aprendido') {
+        if (force || now - state.last.know > 10_000) await loadKnowledge();
+      } else if (force || now - state.last.inc > 6_000) {
+        await loadIncident();
+      }
+      setLive(`${running || state.detail?.task.estado === 'en_curso' ? 'En vivo' : 'Al día'} · ${clock(Date.now())}`);
+    } catch (e) {
+      if (!(e instanceof Stop)) setLive(`Sin datos: ${e.message}`, true);
+    } finally {
+      busy = false;
+      if (again) { again = false; refresh(true); }
+    }
+  }
+
+  // ---------- tareas ----------
+  async function loadList() {
+    state.tasks = (await api('/tasks')).tasks;
+    state.last.list = Date.now();
+    if (!state.taskId && state.tasks[0]) state.taskId = state.tasks[0].id;
+    renderTotals();
+    renderList();
+  }
+
+  function renderTotals() {
+    const ts = state.tasks;
+    const done = ts.filter((t) => t.estado === 'terminada').length;
+    const failed = ts.filter((t) => t.estado === 'fallida').length;
+    const finished = ts.filter((t) => t.finished_at);
+    const total = finished.reduce((s, t) => s + durationOf(t), 0);
+    const cost = ts.reduce((s, t) => s + (t.cost || 0), 0);
+    const stat = (label, value, cls) => h('div', { class: 'stat' }, h('span', { class: 'label', text: label }), h('b', { class: cls, text: value }));
+    $('totals').replaceChildren(
+      stat('Tareas', num.format(ts.length)),
+      stat('Terminadas', num.format(done), 'ok'),
+      stat('Fallidas', num.format(failed), 'bad'),
+      stat('Costo total', money(cost).replace('US$ ', 'US$')),
+      stat('Tiempo total', finished.length ? secs(total) : '—'),
+      stat('Media por tarea', finished.length ? secs(total / finished.length) : '—'),
+    );
+  }
+
+  function renderList() {
+    const ol = $('task-list');
+    if (!state.tasks.length) {
+      ol.replaceChildren(h('li', { class: 'empty', text: 'Todavía no hay tareas. Aparecen aquí apenas el evaluador envía POST /tasks.' }));
+      return;
+    }
+    ol.replaceChildren(...state.tasks.map((t) => h('li', null,
+      h('a', { href: taskHref(t.id), 'aria-current': t.id === state.taskId ? 'true' : null },
+        h('span', { class: `sdot ${t.estado}`, title: t.estado }),
+        h('span', { class: 't', text: t.tarea }),
+        h('span', { class: 'm mono', text: `${fmtDay.format(new Date(t.created_at))} ${clock(t.created_at)} · ${secs(durationOf(t))} · ${t.steps} pasos · ${money(t.cost)}` })))));
+  }
+
+  async function loadDetail() {
+    const id = state.taskId;
+    if (!id || !ID.test(id)) return;
+    let data;
+    try {
+      data = await api(`/tasks/${id}/events`);
+    } catch (e) {
+      if (e instanceof Stop) throw e;
+      $('detail').replaceChildren(h('div', { class: 'card empty', text: `No se pudo abrir la tarea: ${e.message}` }));
+      return;
+    }
+    if (id !== state.taskId) return;
+    const wasRunning = state.detail?.task.id === id && state.detail.task.estado === 'en_curso';
+    state.detail = data;
+    renderDetail(data);
+    renderList();
+    await loadFrame(id, wasRunning || data.task.estado === 'en_curso');
+  }
+
+  function patterns() {
+    const p = (state.incident && state.incident.patrones) || DEFAULT_PATTERNS;
+    const labels = (p.etiquetasNuevas || []).filter((s) => typeof s === 'string' && s);
+    return {
+      ctx: regex(p.modalContexto, DEFAULT_PATTERNS.modalContexto),
+      close: regex(p.modalCierre, DEFAULT_PATTERNS.modalCierre),
+      labels: labels.length ? new RegExp(`\\b(${labels.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'i') : null,
+    };
+  }
+  const isModalClose = (e, pt) => e.stage === 'step' && pt.ctx.test(String(e.data.target || '')) && pt.close.test(`${e.data.target || ''} ${e.data.action || ''}`);
+  const hasNewLabel = (e, pt) => e.stage === 'verified' && pt.labels && pt.labels.test(String(e.data.target || ''));
+
+  function renderDetail({ task, events }) {
+    const pt = patterns();
+    const steps = events.filter((e) => e.stage === 'step');
+    const model = [...events].reverse().find((e) => e.data.model)?.data.model;
+    const app = events.find((e) => e.stage === 'app')?.data.app;
+    const conn = events.find((e) => e.stage === 'connected')?.data.ms;
+    const maxMs = Math.max(1, ...steps.map((e) => (e.data.inferMs || 0) + (e.data.actMs || 0)));
+    const fact = (k, v) => h('div', null, h('dt', { text: k }), h('dd', { text: v }));
+
+    const head = h('header', { class: 'task-head card' },
+      h('div', { class: 'row' }, h('span', { class: `chip ${task.estado}`, text: task.estado.replace('_', ' ') }), h('span', { class: 'label', text: `fase ${task.fase}` }), h('span', { class: 'mono muted', text: task.id })),
+      h('h2', { text: task.tarea }),
+      h('dl', { class: 'facts' },
+        fact('Inicio', `${clock(task.created_at)}`),
+        fact(task.finished_at ? 'Duración' : 'Lleva', secs(durationOf(task))),
+        fact('Pasos', String(task.steps)),
+        fact('Costo', money(task.cost)),
+        fact('App', app || '—'),
+        fact('Conexión', conn !== undefined ? `${num.format(conn)} ms` : '—'),
+        fact('Modelo', model || '—')),
+      task.resumen ? h('div', { class: 'resumen', text: task.resumen }) : null);
+
+    const tape = h('section', { class: 'tape card', 'aria-label': 'Línea de tiempo de la tarea' },
+      h('div', { class: 'section-head' }, h('h3', { text: 'Línea de tiempo' }), h('div', { class: 'legend' }, h('span', null, h('i', { class: 'li' }), 'modelo'), h('span', null, h('i', { class: 'la' }), 'acción'))),
+      events.length
+        ? h('ol', null, events.map((e) => eventRow(e, task, maxMs, pt)))
+        : h('p', { class: 'empty', text: 'Sin pasos todavía. La línea se llena a medida que el agente actúa.' }));
+
+    const frame = h('section', { class: 'frame card', 'aria-label': 'Última captura' },
+      h('div', { class: 'section-head' }, h('h3', { text: 'Última captura' }), h('span', { id: 'frame-meta', class: 'legend' })),
+      h('figure', { id: 'frame-fig' }, h('p', { class: 'empty', text: 'Cargando captura…' })));
+
+    $('detail').replaceChildren(head, h('div', { class: 'detail-grid' }, tape, frame));
+    if (state.frame.taskId === task.id && state.frame.url) paintFrame();
+  }
+
+  function eventRow(e, task, maxMs, pt) {
+    const d = e.data || {};
+    const at = h('span', { class: 'at', text: `+${(Math.max(0, e.at - task.created_at) / 1000).toFixed(1).replace('.', ',')} s` });
+    const row = (cls, n, ...body) => h('li', { class: `ev ${cls}` }, at, h('span', { class: 'n', 'aria-hidden': 'true', text: n }), h('div', { class: 'b' }, body));
+    switch (e.stage) {
+      case 'step': {
+        const infer = d.inferMs || 0;
+        const act = d.actMs || 0;
+        const bar = h('div', { class: 'timing', title: `modelo ${infer} ms · acción ${act} ms` }, h('span'), h('span'));
+        bar.style.width = `${((infer + act) / maxMs) * 100}%`;
+        bar.children[0].style.flexBasis = `${(infer / Math.max(1, infer + act)) * 100}%`;
+        bar.children[1].style.flexGrow = '1';
+        const modal = isModalClose(e, pt);
+        return row(modal ? 'step modal' : 'step', String(d.step ?? ''),
+          h('div', { class: 'tg', text: d.target || '(sin objetivo)' }),
+          h('div', { class: 'ac', text: d.action || '' }),
+          bar,
+          h('div', { class: 'mt', text: `modelo ${num.format(infer)} ms · acción ${num.format(act)} ms · ${money(d.cost)}${typeof d.changed === 'number' ? ` · cambió ${pct.format(d.changed)}` : ''}${d.attempts > 1 ? ` · ${d.attempts} intentos` : ''}` }),
+          modal ? h('span', { class: 'flag modal', text: 'Modal cerrado sin obedecer su texto' }) : null);
+      }
+      case 'verified':
+        return row('verified', '✓', h('div', { class: 'seal' },
+          h('span', { class: 'label', text: `Escritura verificada · paso ${d.step ?? ''}` }),
+          h('div', { class: 'tg', text: d.target || '' }),
+          h('q', { text: d.evidence || '' }),
+          hasNewLabel(e, pt) ? h('span', { class: 'flag label-new', text: 'Etiqueta del tema nuevo' }) : null));
+      case 'finish':
+        return row('finish', '■', h('div', { class: `closing ${d.status || ''}` },
+          h('span', { class: 'label', text: `Cierre · ${d.status || ''} · paso ${d.step ?? ''}` }),
+          h('p', { text: task.resumen || d.target || '' }),
+          d.answer ? h('p', { class: 'mono', text: `respuesta: ${d.answer}` }) : null,
+          h('div', { class: 'mt', text: `modelo ${num.format(d.inferMs || 0)} ms · ${money(d.cost)}` })));
+      case 'rejected':
+        return row('rejected', '×',
+          h('div', { class: 'tg', text: `Rechazada por el supervisor: ${d.target || ''}` }),
+          h('div', { class: 'ac', text: d.action || '' }),
+          h('div', { class: 'why', text: d.why || '' }));
+      case 'connected':
+        return row('info', '', h('div', { class: 'tg', text: `Conectado al escritorio en ${num.format(d.ms || 0)} ms` }), h('div', { class: 'ac', text: d.width ? `${d.width}×${d.height}` : '' }));
+      case 'app':
+        return row('info', '', h('div', { class: 'tg', text: `App reconocida: ${d.app || '—'}` }), h('div', { class: 'ac', text: `${d.knownLessons || 0} lecciones previas cargadas` }));
+      case 'adapt':
+        return row('info', '', h('div', { class: 'tg', text: `La app repinta lento: espera ampliada a ${num.format(d.slowdownMs || 0)} ms` }));
+      case 'recover':
+        return row('info', '', h('div', { class: 'tg', text: `Recuperación del ${d.what || 'worker'}` }), h('div', { class: 'ac', text: d.error || '' }));
+      case 'disconnected':
+        return row('info', '', h('div', { class: 'tg', text: `Se cayó la conexión durante «${d.target || ''}»: efecto incierto, se revisa antes de repetir` }));
+      case 'reconnected':
+        return row('info', '', h('div', { class: 'tg', text: `Conexión recuperada: «${d.target || ''}» no se ejecutó` }));
+      case 'knowledge_updated':
+        return row('info', '', h('div', { class: 'tg', text: `Aprendió de la tarea: ${d.lessons || 0} lecciones para ${d.app || 'la app'}` }));
+      case 'knowledge_reset':
+        return row('forget', '', h('div', { class: 'tg', text: `Olvidó lo aprendido de ${d.app || 'la app'}` }), h('div', { class: 'ac', text: d.reason || '' }));
+      case 'knowledge_error':
+        return row('info', '', h('div', { class: 'tg', text: 'No se pudieron extraer lecciones de esta tarea' }), h('div', { class: 'ac', text: short(String(d.error || ''), 160) }));
+      default:
+        return row('info', '', h('div', { class: 'tg', text: e.stage }), h('div', { class: 'ac', text: short(JSON.stringify(d), 200) }));
+    }
+  }
+
+  async function loadFrame(id, live) {
+    const f = state.frame;
+    if (f.taskId === id && !live) { paintFrame(); return; }
+    const r = await api(`/tasks/${id}/frame.png`, 'raw');
+    if (id !== state.taskId) return;
+    if (r.status === 404) {
+      if (f.url) URL.revokeObjectURL(f.url);
+      state.frame = { taskId: id, at: 0, url: null };
+      paintFrame();
+      return;
+    }
+    if (!r.ok) throw new Error(`captura: ${r.status}`);
+    const at = Number(r.headers.get('X-Frame-At')) || 0;
+    if (f.taskId === id && f.at === at && f.url) { paintFrame(); return; }
+    const [w, hgt] = (r.headers.get('X-Frame-Size') || '0x0').split('x').map(Number);
+    const points = (r.headers.get('X-Frame-Points') || '').split(';').filter(Boolean).map((p) => p.split(',').map(Number)).filter((p) => p.length === 2 && p.every(Number.isFinite));
+    const url = URL.createObjectURL(await r.blob());
+    if (f.url) URL.revokeObjectURL(f.url);
+    state.frame = { taskId: id, at, url, w, h: hgt, points, action: r.headers.get('X-Frame-Action') || '' };
+    paintFrame();
+  }
+
+  function paintFrame() {
+    const fig = $('frame-fig');
+    if (!fig) return;
+    const f = state.frame;
+    if (!f.url) {
+      fig.replaceChildren(h('p', { class: 'empty', text: 'Sin captura en memoria para esta tarea. El servicio guarda la última pantalla de las 6 tareas más recientes mientras sigue encendido.' }));
+      $('frame-meta').textContent = '';
+      return;
+    }
+    const overlay = svg('svg', { viewBox: `0 0 ${f.w} ${f.h}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+    for (const [x, y] of f.points) {
+      overlay.append(svg('line', { class: 'mark-cross', x1: x, y1: 0, x2: x, y2: f.h }), svg('line', { class: 'mark-cross', x1: 0, y1: y, x2: f.w, y2: y }));
+      overlay.append(svg('circle', { class: 'mark-ring', cx: x, cy: y, r: 22 }), svg('circle', { class: 'mark-dot', cx: x, cy: y, r: 5 }));
+    }
+    fig.replaceChildren(
+      h('div', { class: 'shot' }, h('img', { src: f.url, alt: 'Última pantalla que vio el supervisor en esta tarea', width: f.w, height: f.h }), overlay),
+      h('figcaption', { text: f.points.length ? `La marca indica dónde actuó la última acción (${f.action}, ${f.points.map((p) => p.join(',')).join(' · ')}).` : 'La última captura no viene de un clic.' }));
+    $('frame-meta').textContent = `${f.w}×${f.h} · ${clock(f.at)}`;
+  }
+
+  // ---------- aprendido ----------
+  async function loadKnowledge() {
+    if (!state.incident) await loadIncidentData().catch(() => {});
+    state.knowledge = await api('/knowledge');
+    state.last.know = Date.now();
+    renderKnowledge();
+  }
+
+  function historyLabel(e) {
+    const d = e.data || {};
+    switch (e.stage) {
+      case 'knowledge_reset': return { k: `Olvidó lo aprendido de ${d.app || 'la app'}`, d: d.reason || '', cls: 'reset' };
+      case 'knowledge_updated': return { k: `Aprendió ${d.lessons || 0} lecciones de ${d.app || 'la app'}`, d: d.slowdownMs ? `espera extra ${d.slowdownMs} ms` : '' };
+      case 'knowledge_error': return { k: `Sin lecciones nuevas de ${d.app || 'la app'}`, d: short(String(d.error || ''), 140) };
+      default: return { k: e.stage, d: '' };
+    }
+  }
+
+  function renderKnowledge() {
+    const k = state.knowledge;
+    const apps = k.apps.length
+      ? k.apps.map((a) => h('article', { class: 'app-card card' },
+          h('h2', { text: a.app }),
+          h('div', { class: 'm', text: `${a.tasks} tareas aprendidas · espera extra ${num.format(a.slowdown_ms)} ms · actualizado ${clock(a.updated_at)}` }),
+          a.lessons.length ? h('ul', null, a.lessons.map((l) => h('li', { text: l.replace(/^[-•]\s*/, '') }))) : h('p', { class: 'muted', text: 'Sin lecciones: la próxima tarea explora la app desde cero.' })))
+      : [h('div', { class: 'card empty', text: 'Todavía no hay lecciones guardadas. Se aprenden al terminar cada tarea que el agente cierra por decisión propia.' })];
+    const items = k.history.map((e) => {
+      const l = historyLabel(e);
+      return h('li', { class: l.cls || '' }, h('time', { text: clock(e.at) }), h('div', null, h('div', { class: 'k', text: l.k }), l.d ? h('div', { class: 'd', text: l.d }) : null, h('a', { class: 'd mono', href: taskHref(e.task_id), text: `tarea ${e.task_id.slice(0, 8)}` })));
+    });
+    const mig = state.incident && state.incident.adaptaciones ? h('li', { class: 'reset pinned' }, h('time', { text: '15:45' }), h('div', null, h('div', { class: 'k', text: 'Olvido total: migración 3' }), h('div', { class: 'd', text: 'Al desplegar la adaptación al tema nuevo se vació app_knowledge. Lo aprendido de v3.9 ya no describía la pantalla.' }))) : null;
+    $('view-aprendido').replaceChildren(
+      h('div', { class: 'page-head' }, h('h1', { text: 'Lo aprendido por app' }), h('p', { text: 'Lecciones de interfaz que el agente guarda al terminar una tarea y carga cuando reconoce la misma app. Si una tarea falla usándolas, las olvida.' })),
+      h('div', { class: 'know' },
+        h('div', null, apps),
+        h('aside', { class: 'hist card' },
+          h('div', { class: 'section-head' }, h('h3', { text: 'Aprendido y olvidado' })),
+          h('ol', null, items.length ? items : h('li', null, h('span'), h('div', { class: 'd', text: 'Sin cambios registrados desde que el servicio guarda este historial.' })), mig))));
+  }
+
+  // ---------- incidente ----------
+  async function loadIncidentData() {
+    state.incident = await api('/ui/incidente.json');
+    return state.incident;
+  }
+
+  async function loadIncident() {
+    if (!state.incident) {
+      await loadIncidentData();
+      await renderIncidentStatic();
+    }
+    if (!$('adapt')) await renderIncidentStatic();
+    await loadIncidentLive();
+    state.last.inc = Date.now();
+  }
+
+  async function renderIncidentStatic() {
+    const inc = state.incident;
+    const det = inc.deteccion;
+    const [before, after] = await Promise.all([asset(det.antes.imagen), asset(det.despues.imagen)]);
+    const vtag = (v, cls) => h('span', { class: `vtag ${cls}`, text: v.replace(/^.*\s/, '') });
+
+    const pair = h('div', { class: 'compare pair' },
+      h('figure', null, h('img', { src: before, alt: `${det.antes.version}: pantalla de inicio con el tema anterior`, width: 1280, height: 800 }),
+        h('figcaption', null, vtag(det.antes.version, 'v39'), h('b', { text: `${det.antes.version} · ${det.antes.hora}` }), h('p', { text: det.antes.nota }))),
+      h('figure', null, h('img', { src: after, alt: `${det.despues.version}: cabecera verde y modal de novedades al abrir`, width: 1280, height: 800 }),
+        h('figcaption', null, vtag(det.despues.version, 'v42'), h('b', { text: `${det.despues.version} · ${det.despues.hora}` }), h('p', { text: det.despues.nota }))));
+
+    const stage = h('div', { class: 'wipe-stage' },
+      h('img', { class: 'after', src: after, alt: det.despues.version, width: 1280, height: 800, draggable: 'false' }),
+      h('img', { class: 'before', src: before, alt: det.antes.version, width: 1280, height: 800, draggable: 'false' }),
+      h('div', { class: 'wipe-line', 'aria-hidden': 'true' }), vtag(det.antes.version, 'v39'), vtag(det.despues.version, 'v42'));
+    const range = h('input', { type: 'range', min: 0, max: 100, value: 50, 'aria-label': `Cortina entre ${det.antes.version} y ${det.despues.version}` });
+    const setCut = (v) => { stage.style.setProperty('--cut', `${v}%`); range.value = String(v); };
+    range.addEventListener('input', () => setCut(Number(range.value)));
+    const fromPointer = (ev) => { const r = stage.getBoundingClientRect(); setCut(Math.round(Math.min(100, Math.max(0, ((ev.clientX - r.left) / r.width) * 100)))); };
+    stage.addEventListener('pointerdown', (ev) => { stage.setPointerCapture(ev.pointerId); fromPointer(ev); });
+    stage.addEventListener('pointermove', (ev) => { if (stage.hasPointerCapture(ev.pointerId)) fromPointer(ev); });
+    const wipe = h('div', { class: 'compare wipe', hidden: true }, stage, range);
+
+    const modes = [h('button', { type: 'button', 'aria-pressed': 'true', text: 'Lado a lado' }), h('button', { type: 'button', 'aria-pressed': 'false', text: 'Cortina' })];
+    modes.forEach((b, i) => b.addEventListener('click', () => {
+      modes.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j)));
+      pair.hidden = i !== 0;
+      wipe.hidden = i !== 1;
+    }));
+
+    const detection = h('section', { class: 'card', 'aria-labelledby': 'det-title' },
+      h('div', { class: 'section-head' }, h('h3', { id: 'det-title', text: 'Detección' }), h('div', { class: 'seg', role: 'group', 'aria-label': 'Modo de comparación' }, modes)),
+      pair, wipe,
+      h('p', { class: 'detect-note' }, h('b', { text: `${det.hora} · ` }), `${det.fuente}. Cambio: ${det.cambio}.`));
+
+    const timeline = h('section', { class: 'clock card', 'aria-labelledby': 'clock-title' },
+      h('div', { class: 'section-head' }, h('h3', { id: 'clock-title', text: 'Línea de tiempo' }), h('span', { class: 'legend', text: 'hora de Bogotá' })),
+      h('ol', null, inc.lineaDeTiempo.map((r) => h('li', { class: r.tipo }, h('time', { text: r.hora }), h('span', { class: 'pin', 'aria-hidden': 'true' }), h('div', null, h('div', { class: 'k', text: r.titulo }), h('div', { class: 'd', text: r.detalle }))))));
+
+    const cards = inc.adaptaciones.map((a) => h('article', { class: `ad card ${a.clave}`, id: `ad-${a.clave}` },
+      h('h3', { text: a.titulo }), h('p', { text: a.detalle }),
+      h('div', { class: 'count' }, h('b', { text: '…' }), h('span', { text: '' })), h('ul')));
+
+    $('view-incidente').replaceChildren(
+      h('header', { class: 'inc-head card' },
+        h('div', { class: 'ticket-id', text: inc.ticket.id }),
+        h('span', { class: 'label', text: `Respuesta al incidente · ${inc.ticket.hora} · prioridad ${inc.ticket.prioridad}` }),
+        h('h1', { text: inc.ticket.texto }),
+        h('ul', null, inc.ticket.cambios.map((c) => h('li', { text: c })))),
+      h('div', { class: 'inc-top' }, detection, timeline),
+      h('div', { class: 'adapt-head' }, h('h2', { text: 'Adaptación' }), h('p', { id: 'adapt-scope', text: 'Leyendo tareas…' })),
+      h('div', { class: 'adapt', id: 'adapt' }, cards),
+      renderResults(inc));
+  }
+
+  function renderResults(inc) {
+    const [a, b] = inc.resultados;
+    const max = Math.max(1, ...inc.resultados.flatMap((r) => r.filas.map((f) => f.segundos)));
+    const passed = (r) => r.filas.filter((f) => f.app === 'pasa').length;
+    const cell = (f, cls) => {
+      if (!f) return h('div', { class: `cell ${cls}` }, h('span', { class: 'e', text: 'sin dato' }));
+      const bar = h('div', { class: 'rbar' }, h('span'));
+      bar.firstChild.style.width = `${(f.segundos / max) * 100}%`;
+      return h('div', { class: `cell ${cls}` }, bar, h('span', { class: 's', text: `${f.segundos.toFixed(1).replace('.', ',')} s` }), h('span', { class: 'e' }, h('b', { text: f.app }), ` · ${f.estado}`));
+    };
+    const ids = [...new Set([...a.filas, ...b.filas].map((f) => f.prueba))];
+    const rows = ids.map((id) => {
+      const fa = a.filas.find((f) => f.prueba === id);
+      const fb = b.filas.find((f) => f.prueba === id);
+      const delta = fa && fb ? fb.segundos - fa.segundos : null;
+      return h('div', { class: 'res-row' }, h('span', { class: 'p', text: id }), cell(fa, 'v39'), cell(fb, 'v42'), h('span', { class: 'delta', text: delta === null ? '' : `${delta >= 0 ? '+' : '−'}${Math.abs(delta).toFixed(1).replace('.', ',')} s` }));
+    });
+    return h('section', { 'aria-labelledby': 'res-title' },
+      h('div', { class: 'results-head' }, h('h2', { id: 'res-title', text: 'Resultados E1–E5' }),
+        h('span', { class: 'score' }, h('span', { class: 'v39', text: `${a.titulo.split('·').pop().trim()} ${passed(a)}/${a.filas.length}` }), '  →  ', h('span', { class: 'v42', text: `${b.titulo.split('·').pop().trim()} ${passed(b)}/${b.filas.length}` }))),
+      h('div', { class: 'res card' },
+        h('div', { class: 'res-row head' }, h('span', { text: 'Prueba' }), h('span', { text: `${a.titulo} — ${a.detalle}` }), h('span', { text: `${b.titulo} — ${b.detalle}` }), h('span', { class: 'delta', text: 'Δ' })),
+        rows,
+        h('p', { class: 'res-note', text: inc.notaResultados || '' })));
+  }
+
+  async function loadIncidentLive() {
+    const inc = state.incident;
+    const since = Date.parse(inc.desde);
+    if (Date.now() - state.last.list > 4_000) await loadList();
+    const tasks = state.tasks.filter((t) => t.created_at >= since);
+    const now = Date.now();
+    const pending = tasks.filter((t) => {
+      const c = state.incEvents.get(t.id);
+      return !c || !c.final;
+    });
+    for (let i = 0; i < pending.length; i += 4) {
+      await Promise.all(pending.slice(i, i + 4).map(async (t) => {
+        const r = await api(`/tasks/${t.id}/events`);
+        // Tras cerrar, el aprendizaje agrega eventos durante unos segundos más.
+        state.incEvents.set(t.id, { task: r.task, events: r.events, final: r.task.estado !== 'en_curso' && now - (r.task.finished_at || now) > 60_000 });
+      }));
+    }
+    const know = await api('/knowledge');
+    renderAdaptLive(tasks, know, since);
+  }
+
+  function renderAdaptLive(tasks, know, since) {
+    const pt = patterns();
+    const modal = [];
+    const labels = [];
+    const slow = [];
+    let foreign = 0;
+    for (const t of tasks) {
+      const c = state.incEvents.get(t.id);
+      if (!c) continue;
+      const deleted = c.events.some((e) => e.stage === 'step' && DELETE_WORDS.test(String(e.data.target || '')));
+      const deleteAsked = DELETE_WORDS.test(t.tarea);
+      for (const e of c.events) {
+        if (isModalClose(e, pt)) modal.push({ t, e, ok: !deleted || deleteAsked });
+        if (hasNewLabel(e, pt)) labels.push({ t, e });
+        if (e.stage === 'adapt') slow.push({ t, e });
+        if (e.stage === 'rejected' && e.data.why === 'fuera de la tarea') foreign++;
+      }
+    }
+    const resets = know.history.filter((e) => e.stage === 'knowledge_reset' && e.at >= since);
+    const item = (task, at, title, quote, extra) => h('li', null, h('a', { href: taskHref(task.id) },
+      h('span', { class: 'tg', text: title }),
+      h('span', { class: 'sub', text: `${clock(at)} · ${short(task.tarea, 48)}` }),
+      extra ? h('span', { class: 'ok', text: ` · ${extra}` }) : null,
+      quote ? h('q', { text: quote }) : null));
+    const fill = (key, n, caption, list) => {
+      const card = $(`ad-${key}`);
+      if (!card) return;
+      card.querySelector('.count b').textContent = String(n);
+      card.querySelector('.count span').textContent = caption;
+      card.querySelector('ul').replaceChildren(...list.slice(0, 4));
+    };
+    const newest = (a, b) => b.e.at - a.e.at;
+    fill('modal', modal.length, `pasos cerraron el modal${foreign ? ` · ${foreign} órdenes ajenas rechazadas` : ''}`,
+      modal.sort(newest).map((m) => item(m.t, m.e.at, m.e.data.target, '', m.ok ? 'no obedecido' : '')));
+    fill('olvido', resets.length, resets.length === 1 ? 'olvido en vivo, además de la migración 3' : 'olvidos en vivo, además de la migración 3',
+      resets.map((e) => {
+        const t = tasks.find((x) => x.id === e.task_id) || { id: e.task_id, tarea: e.task_id };
+        return item(t, e.at, `Olvidó ${e.data.app || 'la app'}`, e.data.reason || '');
+      }));
+    fill('etiquetas', labels.length, 'escrituras verificadas con etiquetas nuevas',
+      labels.sort(newest).map((l) => item(l.t, l.e.at, l.e.data.target, short(String(l.e.data.evidence || ''), 90))));
+    fill('lento', slow.length, 'esperas ampliadas en vivo',
+      slow.sort(newest).map((s) => item(s.t, s.e.at, `Espera de ${s.e.data.slowdownMs} ms`, '')));
+    const ok = tasks.filter((t) => t.estado === 'terminada').length;
+    $('adapt-scope').textContent = `En vivo desde las ${fmtShort.format(new Date(since))}: ${tasks.length} tareas observadas (${ok} terminadas, ${tasks.length - ok - tasks.filter((t) => t.estado === 'en_curso').length} fallidas).`;
+  }
+
+  // ---------- arranque ----------
+  $('login-form').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const v = $('token').value.trim();
+    if (!v) { $('login-error').textContent = 'Escribe el token del equipo.'; return; }
+    state.token = v;
+    try {
+      await api('/tasks');
+    } catch (e) {
+      if (!(e instanceof Stop)) $('login-error').textContent = `No se pudo conectar: ${e.message}`;
+      if (!(e instanceof Stop)) state.token = null;
+      return;
+    }
+    writeToken(v);
+    start();
+  });
+  $('logout').addEventListener('click', () => signOut(''));
+  window.addEventListener('hashchange', route);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+
+  function start() {
+    $('login').hidden = true;
+    $('logout').hidden = false;
+    loadIncidentData().catch(() => {}).finally(route);
+  }
+
+  setInterval(() => { if (!document.hidden) refresh(); }, 2_000);
+  state.token = readToken();
+  if (state.token) start();
+  else signOut('');
+})();
+</script>
+</body>
+</html>

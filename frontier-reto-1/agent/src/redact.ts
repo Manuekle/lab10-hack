@@ -16,6 +16,14 @@ export function redact(text: string, secrets: readonly string[]): string {
   return out;
 }
 
+// Redacta cada texto dentro de un valor JSON (objetos, listas) sin tocar su estructura.
+export function redactValue(value: unknown, secrets: readonly string[]): unknown {
+  if (typeof value === 'string') return redact(value, secrets);
+  if (Array.isArray(value)) return value.map((v) => redactValue(v, secrets));
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, redactValue(v, secrets)]));
+  return value;
+}
+
 export function log(event: string, data: Record<string, unknown> = {}, secrets: readonly string[] = []): void {
   const line = JSON.stringify({ at: new Date().toISOString(), event, ...data });
   process.stdout.write(`${redact(line, secrets)}\n`);

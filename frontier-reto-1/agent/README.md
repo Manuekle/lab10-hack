@@ -63,9 +63,24 @@ npm run build && npm start                   # producción, desde dist/
 | `src/worker.ts`, `src/agent/memory.ts` | Proceso de inferencia sin socket VNC; memoria y avisos de falta de progreso |
 | `src/driver.ts` | Proceso dueño del socket RFB; ejecuta sólo órdenes del supervisor |
 | `src/summary.ts` | Resumen final con `respuesta:` sólo en preguntas terminadas y sin secretos |
+| `src/observatory.ts`, `src/ui.ts`, `src/ui/` | Observatorio de sólo lectura (`/ui`): última captura por tarea, aprendizaje y olvidos, panel del incidente |
 | `scripts/` | Harness local. No forma parte del agente desplegado |
 
 Las credenciales del escritorio sólo viven en memoria. `.artifacts/` guarda capturas de desarrollo y está fuera de git.
+
+## Observatorio (`/ui`)
+
+Página de sólo lectura para seguir al agente y explicar el incidente de las 15:30. `GET /ui` es pública porque no trae datos: pide el token del equipo, lo guarda en `sessionStorage` de esa pestaña y lo envía como `Authorization: Bearer` a estas rutas, con el mismo token y el mismo freno a la fuerza bruta que el contrato:
+
+| Ruta | Devuelve |
+| --- | --- |
+| `GET /tasks` | Últimas 50 tareas: estado, fase, tarea, resumen, inicio, fin, costo y pasos |
+| `GET /tasks/{id}/events` | La tarea y su línea de tiempo (pasos, rechazos, verificaciones, cierre, aprendizaje) |
+| `GET /tasks/{id}/frame.png` | Última captura que vio el supervisor (en memoria, 6 tareas); `X-Frame-Points` marca el último clic |
+| `GET /knowledge` | Lecciones por app e historial de aprendizajes y olvidos |
+| `GET /ui/incidente.json`, `/ui/assets/*.png` | Datos fijos del incidente (editar `src/ui/incidente.json`) y capturas antes/después |
+
+El observatorio se engancha en `main.ts` sin tocar el supervisor: envuelve el driver para guardar la referencia de cada captura y persiste como eventos los logs de app, aprendizaje y olvido. Ninguna respuesta incluye `desktop_key`, la contraseña del escritorio, el token ni claves; los textos pasan otra vez por `redact`. La página usa CSP con hash y escribe datos en el DOM sólo como texto.
 
 ## Railway
 
@@ -75,7 +90,7 @@ La [preparación de Railway](RAILWAY.md) define el servicio, volumen y variables
 
 | Riesgo | Control |
 | --- | --- |
-| Token del equipo | Tres rutas con `Bearer` comparado en tiempo constante; 429 tras 30 fallos por minuto desde una IP |
+| Token del equipo | Todas las rutas con `Bearer` comparado en tiempo constante, salvo la página vacía `/ui`; 429 tras 30 fallos por minuto desde una IP |
 | Clientes lentos o cuerpos grandes | `headersTimeout` 10 s, `requestTimeout` 15 s, cuerpo ≤64 KB |
 | SSRF con la URL del escritorio | Sólo `ws(s)://`, sin credenciales en la URL; rechazo de IPs privadas literales y, en el driver, de hostnames que **resuelven** a redes privadas (`ALLOW_PRIVATE_DESKTOPS=true` sólo en local) |
 | Servidor VNC hostil | Tamaños validados antes de reservar memoria: escritorio ≤4096 px, nombre ≤1 KB, portapapeles ≤1 MB, cola ≤64 MB, rectángulos dentro del framebuffer |
