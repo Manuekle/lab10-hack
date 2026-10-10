@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: frontier-reto1-agent
+    runtime: docker
+    repo: https://github.com/Manuekle/lab10-hack
+    rootDir: frontier-reto-1/agent
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: DATABASE_PATH
+        value: /tmp/agent.db
+      - key: TEAM_TOKEN
+        generateValue: true
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: anthropic/claude-sonnet-5.5
